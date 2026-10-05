@@ -1,0 +1,16 @@
+export const SUPPORTED_BANKS = [
+  { name: 'GTB', displayName: 'GTBank' },
+  { name: 'Zenith', displayName: 'Zenith' },
+  { name: 'Access', displayName: 'Access' },
+  { name: 'UBA', displayName: 'UBA' },
+  { name: 'First Bank', displayName: 'First Bank' },
+  { name: 'Fidelity', displayName: 'Fidelity' },
+  { name: 'Stanbic IBTC', displayName: 'Stanbic IBTC' },
+  { name: 'Sterling', displayName: 'Sterling' },
+  { name: 'Wema', displayName: 'Wema' },
+  { name: 'Carbon', displayName: 'Carbon' },
+  { name: 'OPay', displayName: 'OPay' },
+  { name: 'Kuda', displayName: 'Kuda' },
+  { name: 'Moniepoint', displayName: 'Moniepoint' },
+  { name: 'PalmPay', displayName: 'PalmPay' },
+];
