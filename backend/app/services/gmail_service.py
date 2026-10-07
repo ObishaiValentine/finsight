@@ -242,26 +242,74 @@ class GmailService:
             return None
 
     def _get_message_body(self, payload: Dict) -> str:
-        """Recursively extract plain text body from Gmail payload."""
+        """
+        Recursively extract plain text body from Gmail payload.
+        Prefers text/plain; strips HTML if only HTML available.
+        """
         try:
+            # Check if this part has sub-parts
             if 'parts' in payload:
+                # First pass: look for text/plain
                 for part in payload['parts']:
                     if part['mimeType'] == 'text/plain':
                         data = part['body'].get('data', '')
                         if data:
                             return base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
                     elif 'parts' in part:
-                        # Recurse for nested parts
+                        nested = self._get_message_body(part)
+                        if nested:
+                            return nested
+
+                # Second pass: fallback to text/html (strip tags)
+                for part in payload['parts']:
+                    if part['mimeType'] == 'text/html':
+                        data = part['body'].get('data', '')
+                        if data:
+                            html = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
+                            return self._strip_html(html)
+                    elif 'parts' in part:
                         nested = self._get_message_body(part)
                         if nested:
                             return nested
             else:
+                # Single part body
                 data = payload['body'].get('data', '')
                 if data:
-                    return base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
+                    content = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
+                    mime = payload.get('mimeType', '')
+                    if mime == 'text/html':
+                        return self._strip_html(content)
+                    return content
             return ''
         except Exception:
             return ''
+
+    def _strip_html(self, html: str) -> str:
+        """Strip HTML tags and decode entities to plain text."""
+        import re
+        import html as html_lib
+
+        # Remove <style> and <script> blocks with their content
+        html = re.sub(r'<style[^>]*>[\s\S]*?</style>', '', html, flags=re.IGNORECASE)
+        html = re.sub(r'<script[^>]*>[\s\S]*?</script>', '', html, flags=re.IGNORECASE)
+
+        # Replace <br> and </p> with newlines
+        html = re.sub(r'<br\s*/?>', '\n', html, flags=re.IGNORECASE)
+        html = re.sub(r'</p>', '\n', html, flags=re.IGNORECASE)
+        html = re.sub(r'</tr>', '\n', html, flags=re.IGNORECASE)
+        html = re.sub(r'</td>', ' ', html, flags=re.IGNORECASE)
+
+        # Remove all remaining HTML tags
+        html = re.sub(r'<[^>]+>', '', html)
+
+        # Decode HTML entities (&amp; → &, &nbsp; → space, etc.)
+        html = html_lib.unescape(html)
+
+        # Collapse whitespace
+        html = re.sub(r'[ \t]+', ' ', html)
+        html = re.sub(r'\n\s*\n+', '\n', html)
+
+        return html.strip()
 
     def disconnect(self, user_id: str) -> bool:
         """Remove Gmail tokens from user record."""
