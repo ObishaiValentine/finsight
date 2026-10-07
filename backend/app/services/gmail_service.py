@@ -48,10 +48,9 @@ class GmailService:
         flow.redirect_uri = settings.google_redirect_uri
 
         auth_url, _ = flow.authorization_url(
-            access_type='offline',
-            include_granted_scopes='true',
-            prompt='consent',
-            state=user_id,
+        access_type='offline',
+        include_granted_scopes='true',
+        state=user_id,
         )
 
         return auth_url
