@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expiry_minutes: int = 1440
 
+    # Google OAuth (Gmail)
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://localhost:8000/api/gmail/callback"
+
     class Config:
         env_file = ".env"
         case_sensitive = False

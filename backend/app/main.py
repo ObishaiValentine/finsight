@@ -44,6 +44,6 @@ allow_origins=[
     "http://localhost:5173",
     "https://finsight-ov-o4.vercel.app",
     "https://finsight-ecru-omega.vercel.app",
-    
+    "https://finsight-ng.vercel.app",
 ],
 allow_origin_regex=r"https://.*\.vercel\.app",

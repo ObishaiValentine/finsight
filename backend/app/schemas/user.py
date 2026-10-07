@@ -59,6 +59,8 @@ class UserResponse(BaseModel):
     notification_push: Optional[bool] = False
     notification_transactions: Optional[bool] = True
     notification_marketing: Optional[bool] = False
+    gmail_connected: Optional[bool] = False
+    gmail_email: Optional[str] = None
     created_at: Optional[datetime] = None
 
 
