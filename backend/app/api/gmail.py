@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 from app.services.gmail_service import gmail_service
 from app.services.auth_service import auth_service
 from app.api.deps import get_current_user
+from app.core.config import settings
 
 router = APIRouter(prefix="/gmail", tags=["Gmail"])
 
@@ -23,25 +24,24 @@ def oauth_callback(
     state: str = Query(...),
     error: str = Query(None),
 ):
-    """
-    Handle Google OAuth callback.
-    `state` contains the user_id we passed in get_auth_url.
-    """
+    """Handle Google OAuth callback."""
+    frontend_url = settings.frontend_url
+
     if error:
         return RedirectResponse(
-            url=f"{'http://localhost:5173'}/accounts?gmail=error",
+            url=f"{frontend_url}/accounts?gmail=error",
             status_code=status.HTTP_302_FOUND,
         )
 
     try:
         result = gmail_service.handle_callback(code=code, user_id=state)
         return RedirectResponse(
-            url=f"{'http://localhost:5173'}/accounts?gmail=success&email={result['gmail_email']}",
+            url=f"{frontend_url}/accounts?gmail=success&email={result['gmail_email']}",
             status_code=status.HTTP_302_FOUND,
         )
-    except HTTPException as e:
+    except HTTPException:
         return RedirectResponse(
-            url=f"{'http://localhost:5173'}/accounts?gmail=error",
+            url=f"{frontend_url}/accounts?gmail=error",
             status_code=status.HTTP_302_FOUND,
         )
 

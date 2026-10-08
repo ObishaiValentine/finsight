@@ -8,6 +8,8 @@ import {
   Building2,
   TrendingUp,
   X,
+  Zap,
+  ExternalLink,
   Copy,
   Check,
   Loader2,
@@ -25,6 +27,7 @@ import {
 import { accountService } from '../services/accountService';
 import BankLogo from '../components/BankLogo';
 import { SUPPORTED_BANKS } from '../utils/banks';
+import { gmailService } from '../services/gmailService';
 
 const SORT_OPTIONS = [
   { value: 'date_desc', label: 'Newest first' },
@@ -72,6 +75,13 @@ export default function Accounts({ onReady }) {
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState('');
 
+  // Gmail state
+  const [gmailStatus, setGmailStatus] = useState({ connected: false, email: null });
+  const [gmailLoading, setGmailLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
+  const [gmailError, setGmailError] = useState('');
+
   // Edit form state
   const [editForm, setEditForm] = useState({
     bank_name: '',
@@ -87,7 +97,7 @@ export default function Accounts({ onReady }) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
-      const fetchAccounts = async () => {
+  const fetchAccounts = async () => {
     setLoading(true);
     setError('');
     try {
@@ -110,8 +120,84 @@ export default function Accounts({ onReady }) {
       await fetchAccounts();
     };
     loadAccounts();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Gmail status + OAuth redirect handler
+  useEffect(() => {
+    const loadGmailStatus = async () => {
+      setGmailLoading(true);
+      try {
+        const status = await gmailService.getStatus();
+        setGmailStatus(status);
+      } catch {
+        // Silent
+      } finally {
+        setGmailLoading(false);
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      const gmailParam = params.get('gmail');
+      const emailParam = params.get('email');
+
+      if (gmailParam === 'success') {
+        setGmailStatus({ connected: true, email: emailParam });
+        setSyncResult({ type: 'success', message: `Gmail connected: ${emailParam}` });
+        setTimeout(() => setSyncResult(null), 5000);
+        window.history.replaceState({}, '', window.location.pathname);
+      } else if (gmailParam === 'error') {
+        setGmailError('Failed to connect Gmail. Please try again.');
+        setTimeout(() => setGmailError(''), 5000);
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    };
+
+    loadGmailStatus();
+  }, []);
+
+  const handleConnectGmail = async () => {
+    try {
+      setGmailError('');
+      const { auth_url } = await gmailService.getAuthUrl();
+      window.location.href = auth_url;
+    } catch (err) {
+      setGmailError(err.message || 'Failed to start Gmail connection');
+    }
+  };
+
+  const handleSyncGmail = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    setGmailError('');
+
+    try {
+      const result = await gmailService.syncEmails(50);
+      setSyncResult({
+        type: 'success',
+        message: `Synced ${result.synced} new transaction${result.synced !== 1 ? 's' : ''} (${result.skipped_duplicates} skipped)`,
+      });
+
+      await fetchAccounts();
+
+      setTimeout(() => setSyncResult(null), 6000);
+    } catch (err) {
+      setGmailError(err.message || 'Sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleDisconnectGmail = async () => {
+    if (!window.confirm('Disconnect Gmail? You can reconnect anytime.')) return;
+    try {
+      await gmailService.disconnect();
+      setGmailStatus({ connected: false, email: null });
+      setSyncResult({ type: 'success', message: 'Gmail disconnected' });
+      setTimeout(() => setSyncResult(null), 3000);
+    } catch (err) {
+      setGmailError(err.message || 'Disconnect failed');
+    }
+  };
 
   const handleCopyEmail = () => {
     navigator.clipboard.writeText('alerts@finsight.app');
@@ -123,12 +209,10 @@ export default function Accounts({ onReady }) {
   const processedAccounts = useMemo(() => {
     let result = [...accounts];
 
-    // Filter by bank
     if (filterBank !== 'All') {
       result = result.filter((a) => a.bank_name === filterBank);
     }
 
-    // Sort
     switch (sortBy) {
       case 'date_desc':
         result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -152,7 +236,6 @@ export default function Accounts({ onReady }) {
     return result;
   }, [accounts, sortBy, filterBank]);
 
-  // Unique banks for filter dropdown
   const availableBanks = useMemo(() => {
     const banks = new Set(accounts.map((a) => a.bank_name));
     return ['All', ...Array.from(banks)];
@@ -247,7 +330,7 @@ export default function Accounts({ onReady }) {
     }
   };
 
-    // RESTORE account
+  // RESTORE account
   const handleRestore = async (account) => {
     setRestoring(account.id);
     try {
@@ -373,12 +456,120 @@ export default function Accounts({ onReady }) {
         </div>
       </motion.div>
 
+      {/* GMAIL SYNC CARD */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.15 }}
+        className={`glass rounded-xl p-5 border transition-colors ${
+          gmailStatus.connected
+            ? 'border-green-500/20 bg-green-500/5'
+            : 'border-blue-500/20 bg-blue-500/5'
+        }`}
+      >
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+            gmailStatus.connected
+              ? 'bg-linear-to-br from-green-500 to-emerald-500'
+              : 'bg-linear-to-br from-blue-500 to-cyan-400'
+          }`}>
+            {gmailLoading ? (
+              <Loader2 size={22} className="text-white animate-spin" />
+            ) : gmailStatus.connected ? (
+              <CheckCircle2 size={22} className="text-white" />
+            ) : (
+              <Mail size={22} className="text-white" />
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <h3 className="text-base font-bold text-primary">
+                {gmailStatus.connected ? 'Gmail Connected' : 'Connect Your Gmail'}
+              </h3>
+              {gmailStatus.connected && (
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-green-500/15 text-green-500 border border-green-500/20">
+                  Active
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-secondary truncate">
+              {gmailLoading
+                ? 'Checking connection...'
+                : gmailStatus.connected
+                ? gmailStatus.email
+                : 'Auto-fetch bank alerts from Gmail — no manual entry'}
+            </p>
+
+            {syncResult && (
+              <motion.p
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-xs text-green-500 mt-1.5"
+              >
+                {syncResult.message}
+              </motion.p>
+            )}
+
+            {gmailError && (
+              <motion.p
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-xs text-red-500 mt-1.5"
+              >
+                {gmailError}
+              </motion.p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+            {gmailStatus.connected ? (
+              <>
+                <button
+                  onClick={handleSyncGmail}
+                  disabled={syncing}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-linear-to-r from-green-600 to-emerald-500 text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-60 shadow-lg shadow-green-500/20"
+                >
+                  {syncing ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <Zap size={16} />
+                      Sync Now
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleDisconnectGmail}
+                  className="px-3 py-2.5 rounded-lg bg-elevated border border-app text-secondary text-sm font-medium hover:border-red-500 hover:text-red-500 transition-colors"
+                  title="Disconnect Gmail"
+                >
+                  <X size={16} />
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleConnectGmail}
+                disabled={gmailLoading}
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-linear-to-r from-blue-600 to-cyan-500 text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-60 shadow-lg shadow-blue-500/20"
+              >
+                <ExternalLink size={16} />
+                Connect Gmail
+              </button>
+            )}
+          </div>
+        </div>
+      </motion.div>
+
       {/* TOOLBAR — sort + filter */}
       {!loading && accounts.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.15 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
           className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center"
         >
           {/* Filter */}
@@ -413,7 +604,7 @@ export default function Accounts({ onReady }) {
             </select>
           </div>
 
-                   {/* Archived toggle */}
+          {/* Archived toggle */}
           {archivedAccounts.length > 0 && (
             <button
               onClick={() => setShowArchived(!showArchived)}
@@ -543,7 +734,7 @@ export default function Accounts({ onReady }) {
         </div>
       )}
 
-            {/* ARCHIVED ACCOUNTS SECTION */}
+      {/* ARCHIVED ACCOUNTS SECTION */}
       {showArchived && archivedAccounts.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -619,7 +810,6 @@ export default function Accounts({ onReady }) {
         </motion.div>
       )}
 
-
       {/* ===================== ACCOUNT DETAIL MODAL ===================== */}
       <AnimatePresence>
         {detailAccount && !editAccount && !deleteAccount && (
@@ -637,7 +827,6 @@ export default function Accounts({ onReady }) {
               onClick={(e) => e.stopPropagation()}
               className="bg-card border border-app rounded-2xl max-w-md w-full shadow-2xl overflow-hidden"
             >
-              {/* Header */}
               <div className="relative p-6 pb-4 overflow-hidden">
                 <div className="absolute -top-20 -right-20 w-48 h-48 bg-linear-to-br from-blue-500/20 to-cyan-400/10 rounded-full blur-3xl" />
                 <div className="relative flex items-start justify-between">
@@ -657,7 +846,6 @@ export default function Accounts({ onReady }) {
                 </div>
               </div>
 
-              {/* Balance */}
               <div className="px-6 pb-4">
                 <p className="text-xs text-muted mb-1">Available Balance</p>
                 <p className="text-3xl font-bold text-primary">
@@ -665,7 +853,6 @@ export default function Accounts({ onReady }) {
                 </p>
               </div>
 
-              {/* Details Grid */}
               <div className="px-6 pb-4 space-y-3">
                 <DetailRow label="Account Number" value={detailAccount.account_number} mono />
                 <DetailRow label="Bank" value={detailAccount.bank_name} />
@@ -674,7 +861,6 @@ export default function Accounts({ onReady }) {
                 <DetailRow label="Status" value={detailAccount.is_active ? 'Active' : 'Inactive'} />
               </div>
 
-              {/* Notes */}
               {detailAccount.notes && (
                 <div className="px-6 pb-4">
                   <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
@@ -693,7 +879,6 @@ export default function Accounts({ onReady }) {
                 </div>
               )}
 
-              {/* Actions */}
               <div className="flex gap-2 p-4 border-t border-app">
                 <button
                   onClick={() => openEditModal(detailAccount)}
@@ -859,7 +1044,7 @@ export default function Accounts({ onReady }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setDeleteAccount(null)}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-70 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-70 flex items-center justify-center p-4"
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -916,7 +1101,7 @@ export default function Accounts({ onReady }) {
         )}
       </AnimatePresence>
 
-      {/* ===================== CREATE ACCOUNT MODAL (unchanged logic) ===================== */}
+      {/* ===================== CREATE ACCOUNT MODAL ===================== */}
       <AnimatePresence>
         {createModalOpen && (
           <motion.div
@@ -973,7 +1158,6 @@ export default function Accounts({ onReady }) {
                 </div>
               )}
 
-              {/* VIEW 1: Bank Picker */}
               {!isBankSelected && (
                 <div className="flex-1 overflow-hidden flex flex-col px-6 pb-6">
                   <div className="relative mb-4 shrink-0">
@@ -1056,7 +1240,6 @@ export default function Accounts({ onReady }) {
                 </div>
               )}
 
-              {/* VIEW 2: Account Details */}
               {isBankSelected && (
                 <form onSubmit={handleCreateAccount} className="flex-1 overflow-hidden flex flex-col">
                   <div className="flex-1 overflow-y-auto px-6 space-y-4">
