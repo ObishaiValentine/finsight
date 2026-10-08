@@ -101,10 +101,18 @@ class GmailSyncService:
                 errors.append(f"Parse error: {str(e)[:100]}")
                 continue
 
-            # Require minimum fields
-            if not parsed.get('amount') or not parsed.get('transaction_type'):
+            # Require minimum fields: amount, type, date
+            if not parsed.get('amount'):
                 failed += 1
-                errors.append(f"Missing fields for {gmail_id[:8]}")
+                errors.append(f"Missing amount for {gmail_id[:8]}")
+                continue
+            if not parsed.get('transaction_type'):
+                failed += 1
+                errors.append(f"Missing type for {gmail_id[:8]}")
+                continue
+            if not parsed.get('date'):
+                # Skip newsletters / non-transaction emails silently
+                skipped += 1
                 continue
 
             # Categorize
