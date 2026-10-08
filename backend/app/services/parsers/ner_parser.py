@@ -22,13 +22,13 @@ class NERParser:
         ]
 
     def _clean_extracted_text(self, text: str) -> str:
+        """Clean and normalize extracted narrative text."""
         text = re.sub(r"\s+", " ", text)
         text = text.strip(" .,;:-")
         return text
 
     def _clean_merchant_noise(self, text: str) -> str:
         """Clean merchant name from noise."""
-        # Remove leading prefixes
         text = re.sub(
             r"^(?:transfer\s+(?:from|to)|payment\s+(?:from|to)|from|to)\s+",
             "",
@@ -36,31 +36,32 @@ class NERParser:
             flags=re.IGNORECASE,
         )
 
-        # Remove POS prefix + transaction ID
         text = re.sub(r"^pos\s+pur(?:chase)?\s*@?\s*", "", text, flags=re.IGNORECASE)
         text = re.sub(r"^pos\s+", "", text, flags=re.IGNORECASE)
 
-        # Remove LEADING long numeric sequence (GTB style: 000013260929145737000026510742)
-        text = re.sub(r"^\d{15,}\s*", "", text)
+        # Remove long alphanumeric IDs
+        text = re.sub(r"\b[A-Z]{2,}\d{10,}\b", "", text)
 
-        # Remove any other long numeric sequences
-        text = re.sub(r"\b\d{10,}\b", " ", text)
-
-        # Remove standalone alphanumeric IDs (like 257ZHQT9)
+        # Remove standalone alphanumeric IDs (7-10 chars)
         text = re.sub(r"\b[A-Z0-9]{7,10}\b\s*[-]?\s*", " ", text)
 
-        # Take FIRST segment before " - " if there are multiple segments
-        # (GTB style: "SNACKS TO OPAY - PONNAN BINDUL VONGZING" → "SNACKS TO OPAY")
-        if " - " in text:
-            parts = text.split(" - ")
-            # Prefer shorter first part (merchant name typically shorter than person name)
-            if len(parts) > 1 and len(parts[0]) <= len(parts[1]):
-                text = parts[0]
+        # Remove long numeric sequences
+        text = re.sub(r"\b\d{6,}\b\s*/?\s*", " ", text)
+
+        # Truncate at common stop-words if they slip through
+        stop_words = [
+            "transaction remarks", "date and time", "available balance",
+            "cleared balance", "value date", "transaction location",
+            "transaction reference",
+        ]
+        for stop in stop_words:
+            if stop in text.lower():
+                text = text[:text.lower().index(stop)]
 
         # Remove trailing short uppercase location code
         text = re.sub(r"\s+[A-Z]{1,2}$", "", text)
 
-        # Collapse whitespace
+        # Collapse whitespace + strip
         text = re.sub(r"\s+", " ", text).strip()
 
         # Invalid phrases
@@ -74,15 +75,41 @@ class NERParser:
         return text
 
     def _extract_field_after_keyword(self, text: str, keyword_pattern: str) -> Optional[str]:
-        """Extract value after a field keyword."""
+        """Extract value after a field keyword with stop conditions."""
         stop_keywords = (
-            r"(?:date|time\s+of\s+transaction|account\s+number|account|acct|a/c|"
+            r"(?:date|time|account\s+number|account|acct|a/c|"
             r"amount|amt|balance|bal|cleared\s+balance|uncleared\s+balance|"
             r"available\s+balance|current\s+balance|narration|description|"
             r"details|sender|beneficiary|transaction\s+reference|reference|"
             r"value\s+date|currency|transaction\s+type|transaction\s+date|"
-            r"remarks|document\s+number|transaction\s+location)"
+            r"remarks|transaction\s+remarks|document\s+number|"
+            r"transaction\s+location|time\s+of\s+transaction)"
         )
+
+        # Match keyword, capture value, stop at next field keyword
+        # Allow whitespace between keyword and value (handles collapsed text)
+        pattern = re.compile(
+            rf"{keyword_pattern}\s*:?\s*"
+            rf"([\s\S]+?)"
+            rf"(?:\s+(?:{stop_keywords})\s*:|\Z)",
+            re.IGNORECASE,
+        )
+
+        match = pattern.search(text)
+        if match:
+            raw = match.group(1).strip()
+            # Take only first line if multiline
+            first_line = raw.split("\n")[0].strip()
+            if not first_line:
+                for line in raw.split("\n"):
+                    line = line.strip()
+                    if line:
+                        first_line = line
+                        break
+            if first_line:
+                return self._clean_merchant_noise(first_line)
+
+        return None
 
         pattern = re.compile(
             rf"{keyword_pattern}\s*:?\s*"
@@ -107,16 +134,23 @@ class NERParser:
         return None
 
     def _extract_narrative_line(self, text: str) -> Optional[str]:
-        """Extract merchant/narrative."""
-        # Priority 1: Description
-        desc = self._extract_field_after_keyword(text, r"\bdescription\b")
-        if desc and self._is_valid_entity(desc):
-            return desc
-
-        # Priority 2: Narration
+        """
+        Extract merchant/narrative.
+        Priority (by reliability):
+        1. Narration (most common in NG bank alerts)
+        2. Description
+        3. Sender / Beneficiary
+        4. Transfer from/to
+        """
+        # Priority 1: Narration
         narration = self._extract_field_after_keyword(text, r"\bnarration\b")
         if narration and self._is_valid_entity(narration):
             return narration
+
+        # Priority 2: Description
+        description = self._extract_field_after_keyword(text, r"\bdescription\b")
+        if description and self._is_valid_entity(description):
+            return description
 
         # Priority 3: Sender
         sender = self._extract_field_after_keyword(text, r"\bsender(?:'s)?\s*(?:name)?\b")
@@ -136,6 +170,7 @@ class NERParser:
         return None
 
     def _is_valid_entity(self, entity_text: str) -> bool:
+        """Check if entity text is valid."""
         text_lower = entity_text.lower().strip()
         if len(text_lower) < 3:
             return False
@@ -146,10 +181,13 @@ class NERParser:
         return True
 
     def extract_merchant(self, text: str) -> Optional[str]:
+        """Extract merchant/beneficiary name."""
+        # Priority 1: Narrative line patterns
         narrative = self._extract_narrative_line(text)
         if narrative and self._is_valid_entity(narrative):
             return narrative
 
+        # Priority 2: spaCy NER fallback
         doc = self.nlp(text)
         entities = []
         for ent in doc.ents:
@@ -163,6 +201,7 @@ class NERParser:
         return None
 
     def extract_entities(self, text: str) -> List[dict]:
+        """Extract ALL entities (for debugging)."""
         doc = self.nlp(text)
         return [
             {"text": ent.text, "label": ent.label_}

@@ -111,17 +111,34 @@ class RegexParser:
         return None
 
     def extract_account_number(self, text: str) -> Optional[str]:
-        """Extract 10-digit account number."""
+        """
+        Extract 10-digit account number.
+        Returns None for masked accounts (e.g., 2XX..60X).
+        
+        Strategy:
+        - ONLY match when preceded by account keyword (Account, Acct, A/C)
+        - Skip phone numbers (Nigerian format: starts with 70, 80, 81, 90, 91)
+        - No random 10-digit fallback (prevents grabbing phone/ref numbers)
+        """
+        # Keyword-based ONLY
         account_kw = re.search(
             r"(?:account|acct|a/c)\s*(?:no\.?|number|name)?\s*:?\s*(\d{10})",
             text,
             re.IGNORECASE,
         )
         if account_kw:
-            return account_kw.group(1)
+            candidate = account_kw.group(1)
+            if not self._is_nigerian_phone_number(candidate):
+                return candidate
 
-        matches = self.ACCOUNT_PATTERN.findall(text)
-        return matches[0] if matches else None
+        # No fallback — return None for masked accounts
+        return None
+
+    def _is_nigerian_phone_number(self, num: str) -> bool:
+        """Check if 10-digit number matches Nigerian phone pattern."""
+        # Nigerian phone numbers (without leading 0) start with:
+        # 70, 80, 81, 90, 91 (e.g., 803..., 814..., 706...)
+        return bool(re.match(r"^[789][01]\d{8}$", num))
 
     def extract_balance(self, text: str) -> Optional[float]:
         """Extract balance."""
@@ -277,7 +294,7 @@ class RegexParser:
                             parsed = parsed.replace(hour=hour, minute=minute, second=second)
                     return parsed
         return None
-
+ 
     def parse(self, text: str) -> dict:
         """Run all extractors and return combined result."""
         return {

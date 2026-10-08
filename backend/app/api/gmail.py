@@ -88,3 +88,16 @@ def disconnect(current_user: dict = Depends(get_current_user)):
     """Disconnect Gmail from user's account."""
     gmail_service.disconnect(current_user["id"])
     return {"message": "Gmail disconnected"}
+
+@router.post("/sync")
+def sync_emails(
+    max_results: int = Query(50, ge=1, le=200),
+    current_user: dict = Depends(get_current_user),
+):
+    """Sync Gmail bank alerts into transactions."""
+    from app.services.gmail_sync_service import gmail_sync_service
+
+    return gmail_sync_service.sync_user_emails(
+        user_id=current_user["id"],
+        max_results=max_results,
+    )
