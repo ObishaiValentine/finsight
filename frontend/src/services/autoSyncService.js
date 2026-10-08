@@ -1,12 +1,12 @@
 import { gmailService } from './gmailService';
 
-const SYNC_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+const SYNC_COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes now
 
 /**
  * Auto-sync Gmail in the background.
  * Skips if:
  * - Gmail not connected
- * - Last sync was less than 5 minutes ago
+ * - Last sync was less than 2 minutes ago
  */
 export async function autoSyncOnLogin(userId) {
   if (!userId) return { skipped: true, reason: 'no-user' };
@@ -42,4 +42,12 @@ export async function autoSyncOnLogin(userId) {
     console.warn('Auto-sync failed:', err.message);
     return { skipped: true, reason: 'error', error: err.message };
   }
+}
+
+/**
+ * Force-reset the cooldown (for manual testing)
+ */
+export function resetSyncCooldown(userId) {
+  if (!userId) return;
+  localStorage.removeItem(`finsight-last-sync-${userId}`);
 }

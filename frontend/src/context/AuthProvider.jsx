@@ -34,6 +34,20 @@ export function AuthProvider({ children }) {
     loadUser();
   }, []);
 
+  // Re-sync whenever user returns to the tab
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        autoSyncOnLogin(user.id).catch(() => {});
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user?.id]);
+
   // Real login via backend
   const login = async (email, password) => {
   const data = await authService.login(email, password);
