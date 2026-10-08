@@ -1427,7 +1427,7 @@ export default function Accounts({ onReady }) {
                   Maybe Later
                 </button>
                 <button className="flex-1 px-4 py-2.5 rounded-lg bg-linear-to-r from-blue-600 to-cyan-500 text-white text-sm font-medium hover:opacity-90 transition-opacity">
-                  Connect Gmail
+                  Connect Email
                 </button>
               </div>
             </motion.div>

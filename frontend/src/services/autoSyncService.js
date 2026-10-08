@@ -28,7 +28,7 @@ export async function autoSyncOnLogin(userId) {
     }
 
     // Run sync
-    const result = await gmailService.syncEmails(50);
+    const result = await gmailService.syncEmails(10);
 
     // Save timestamp
     localStorage.setItem(lastSyncKey, now.toString());
