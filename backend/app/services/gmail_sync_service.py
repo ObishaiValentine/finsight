@@ -21,7 +21,7 @@ BANK_SENDER_MAP = {
     'stanbicibtc.com': 'Stanbic IBTC',
     'sterling.ng': 'Sterling',
     'wemabank.com': 'Wema',
-    'carbon.ng': 'Carbon',
+    'getcarbon.co': 'Carbon',
     'opay.com': 'OPay',
     'kuda.com': 'Kuda',
     'moniepoint.com': 'Moniepoint',
@@ -35,12 +35,36 @@ class GmailSyncService:
     def __init__(self):
         self.parser = HybridParser()
 
-    def _detect_bank(self, sender: str) -> str:
-        """Extract bank name from sender email."""
+    def _detect_bank(self, sender: str, body: str = '') -> str:
+        """Extract bank name from sender email OR email body."""
         sender_lower = sender.lower()
         for domain, bank in BANK_SENDER_MAP.items():
             if domain in sender_lower:
                 return bank
+        
+        # Fallback: check body for bank names
+        body_lower = body.lower()[:500]  # first 500 chars
+        if 'carbon' in body_lower:
+            return 'Carbon'
+        if 'gtb' in body_lower or 'gtbank' in body_lower:
+            return 'GTB'
+        if 'zenith' in body_lower:
+            return 'Zenith'
+        if 'access bank' in body_lower:
+            return 'Access'
+        if 'uba' in body_lower or 'united bank for africa' in body_lower:
+            return 'UBA'
+        if 'first bank' in body_lower:
+            return 'First Bank'
+        if 'kuda' in body_lower:
+            return 'Kuda'
+        if 'opay' in body_lower:
+            return 'OPay'
+        if 'palmpay' in body_lower:
+            return 'PalmPay'
+        if 'moniepoint' in body_lower:
+            return 'Moniepoint'
+        
         return 'Unknown'
 
     def _is_duplicate(self, user_id: str, gmail_id: str) -> bool:
@@ -91,7 +115,7 @@ class GmailSyncService:
                 continue
 
             # Detect bank
-            bank = self._detect_bank(sender)
+            bank = self._detect_bank(sender, body)
 
             # Parse
             try:

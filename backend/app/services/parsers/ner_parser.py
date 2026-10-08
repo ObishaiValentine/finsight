@@ -101,7 +101,9 @@ class NERParser:
             r"details|sender|beneficiary|transaction\s+reference|reference|"
             r"value\s+date|currency|transaction\s+type|transaction\s+date|"
             r"remarks|transaction\s+remarks|document\s+number|"
-            r"transaction\s+location|time\s+of\s+transaction)"
+            r"transaction\s+location|time\s+of\s+transaction|"
+            r"recent\s+transactions|vat\s+charge|"
+            r"open\s+app|the\s+carbon\s+team)"
         )
 
         pattern = re.compile(
@@ -124,6 +126,21 @@ class NERParser:
             if first_line:
                 return self._clean_merchant_noise(first_line)
 
+        return None
+
+    def _extract_carbon_merchant(self, text: str) -> Optional[str]:
+        """Special handler for Carbon emails — extract from NIP or narration."""
+        # Carbon NIP pattern: "NIP//000004261008084454772326837423 - FROM OBISHAI VALENTINE ONYEMAECHI"
+        nip_match = re.search(
+            r"NIP//\d+\s*-\s*FROM\s+([A-Z][A-Z\s]+?)(?://|$)",
+            text,
+            re.IGNORECASE,
+        )
+        if nip_match:
+            name = nip_match.group(1).strip()
+            if len(name) > 3:
+                return self._clean_merchant_noise(name)
+        
         return None
 
     def _extract_narrative_line(self, text: str) -> Optional[str]:
@@ -175,6 +192,11 @@ class NERParser:
 
     def extract_merchant(self, text: str) -> Optional[str]:
         """Extract merchant/beneficiary name."""
+        # Priority 0: Carbon-specific NIP pattern
+        carbon_merchant = self._extract_carbon_merchant(text)
+        if carbon_merchant and self._is_valid_entity(carbon_merchant):
+            return carbon_merchant
+
         # Priority 1: Narrative line patterns
         narrative = self._extract_narrative_line(text)
         if narrative and self._is_valid_entity(narrative):
@@ -192,7 +214,7 @@ class NERParser:
             return self._clean_extracted_text(max(entities, key=len))
 
         return None
-
+    
     def extract_entities(self, text: str) -> List[dict]:
         """Extract ALL entities (for debugging)."""
         doc = self.nlp(text)
