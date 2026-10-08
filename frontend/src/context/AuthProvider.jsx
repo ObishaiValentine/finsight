@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { autoSyncOnLogin } from '../services/autoSyncService';
 import { AuthContext } from './AuthContext';
 import { authService } from '../services/authService';
 
@@ -7,22 +8,21 @@ export function AuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
 
   // Load user from localStorage on mount
-  useEffect(() => {
+   useEffect(() => {
     const loadUser = async () => {
       const token = localStorage.getItem('finsight-token');
       const savedUser = localStorage.getItem('finsight-user');
 
       if (token && savedUser) {
         try {
-          // Set user from cache immediately (fast)
           setUser(JSON.parse(savedUser));
-
-          // Then verify with backend (fresh data)
           const freshUser = await authService.getCurrentUser();
           setUser(freshUser);
           localStorage.setItem('finsight-user', JSON.stringify(freshUser));
+
+          // Auto-sync Gmail in background (non-blocking)
+         autoSyncOnLogin(freshUser.id).catch(() => {});
         } catch {
-          // Token invalid or expired — clear
           localStorage.removeItem('finsight-token');
           localStorage.removeItem('finsight-user');
           setUser(null);
@@ -36,13 +36,16 @@ export function AuthProvider({ children }) {
 
   // Real login via backend
   const login = async (email, password) => {
-    const data = await authService.login(email, password);
+  const data = await authService.login(email, password);
 
-    // Store token + user
     localStorage.setItem('finsight-token', data.access_token);
     localStorage.setItem('finsight-user', JSON.stringify(data.user));
 
     setUser(data.user);
+
+    // Auto-sync Gmail in background after login (non-blocking)
+    autoSyncOnLogin(data.user.id).catch(() => {});
+
     return data.user;
   };
 
