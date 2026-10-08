@@ -28,7 +28,15 @@ class NERParser:
         return text
 
     def _clean_merchant_noise(self, text: str) -> str:
-        """Clean merchant name from noise."""
+        """
+        Clean merchant name from noise.
+        Examples:
+          "POS Pur @ 257ZHQT9-OPAY cidov resources Asaba C" -> "OPAY cidov resources"
+          "Transfer from Valentine Obishai" -> "Valentine Obishai"
+          "USSD TOPUP 8146362310 AATU071026105636006279562884" -> "USSD TOPUP"
+          "NIP//000004261008084454772326837423 - FROM OBISHAI VALENTINE" -> "OBISHAI VALENTINE"
+        """
+        # Remove leading prefixes
         text = re.sub(
             r"^(?:transfer\s+(?:from|to)|payment\s+(?:from|to)|from|to)\s+",
             "",
@@ -36,16 +44,29 @@ class NERParser:
             flags=re.IGNORECASE,
         )
 
+        # Remove POS prefix + transaction ID
         text = re.sub(r"^pos\s+pur(?:chase)?\s*@?\s*", "", text, flags=re.IGNORECASE)
         text = re.sub(r"^pos\s+", "", text, flags=re.IGNORECASE)
 
-        # Remove long alphanumeric IDs
+        # Remove NIP/transaction reference prefixes
+        text = re.sub(r"^nip//\d+\s*-\s*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"^nip//\d+\s*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"^nip//\s*", "", text, flags=re.IGNORECASE)
+
+        # Remove "FROM" prefix after NIP
+        text = re.sub(r"^from\s+", "", text, flags=re.IGNORECASE)
+
+        # Remove //MOB/UTO/... patterns
+        text = re.sub(r"//mob/\w+/\w+/[^\s]*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"//[A-Za-z]+/[A-Za-z]+/[^\s/]*", "", text, flags=re.IGNORECASE)
+
+        # Remove long alphanumeric IDs (like AATU071026105636006279562884)
         text = re.sub(r"\b[A-Z]{2,}\d{10,}\b", "", text)
 
-        # Remove standalone alphanumeric IDs (7-10 chars)
+        # Remove standalone alphanumeric IDs (7-10 chars like 257ZHQT9)
         text = re.sub(r"\b[A-Z0-9]{7,10}\b\s*[-]?\s*", " ", text)
 
-        # Remove long numeric sequences
+        # Remove long numeric sequences (phone numbers, remarks)
         text = re.sub(r"\b\d{6,}\b\s*/?\s*", " ", text)
 
         # Truncate at common stop-words if they slip through
@@ -58,7 +79,7 @@ class NERParser:
             if stop in text.lower():
                 text = text[:text.lower().index(stop)]
 
-        # Remove trailing short uppercase location code
+        # Remove trailing short uppercase location code (like "Asaba C")
         text = re.sub(r"\s+[A-Z]{1,2}$", "", text)
 
         # Collapse whitespace + strip
@@ -86,35 +107,10 @@ class NERParser:
             r"transaction\s+location|time\s+of\s+transaction)"
         )
 
-        # Match keyword, capture value, stop at next field keyword
-        # Allow whitespace between keyword and value (handles collapsed text)
         pattern = re.compile(
             rf"{keyword_pattern}\s*:?\s*"
             rf"([\s\S]+?)"
             rf"(?:\s+(?:{stop_keywords})\s*:|\Z)",
-            re.IGNORECASE,
-        )
-
-        match = pattern.search(text)
-        if match:
-            raw = match.group(1).strip()
-            # Take only first line if multiline
-            first_line = raw.split("\n")[0].strip()
-            if not first_line:
-                for line in raw.split("\n"):
-                    line = line.strip()
-                    if line:
-                        first_line = line
-                        break
-            if first_line:
-                return self._clean_merchant_noise(first_line)
-
-        return None
-
-        pattern = re.compile(
-            rf"{keyword_pattern}\s*:?\s*"
-            rf"([\s\S]+?)"
-            rf"(?=\s*\n\s*(?:{stop_keywords})\b|\Z)",
             re.IGNORECASE,
         )
 

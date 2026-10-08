@@ -17,9 +17,14 @@ class RegexParser:
     )
 
     AMOUNT_KEYWORD_PATTERN = re.compile(
-        r"(?:transaction\s+|credit\s+|debit\s+)?amount\s*:?\s*(?:NGN|N|₦)?\s*([\d,]+(?:\.\d{1,2})?)"
+        # Standard: "Amount: NGN 5,000.00"
+        r"(?:transaction\s+|credit\s+|debit\s+)?amount\s*:?\s*(?:NGN|N|₦)?\s*([\d,]+\.\d{2})"
         r"|"
-        r"\b(?:debit|credit)\s+transaction\s+of\s+(?:NGN|N|₦)?\s*([\d,]+\.\d{2})",
+        # "debit transaction of 5,010.00"
+        r"\b(?:debit|credit)\s+transaction\s+of\s+(?:NGN|N|₦)?\s*([\d,]+\.\d{2})"
+        r"|"
+        # Carbon style: "*4,000.00*" or "amount of *4,000.00*"
+        r"\b(?:debit|credit)\s+transaction\s+of\s+\*?([\d,]+\.\d{2})\*?",
         re.IGNORECASE,
     )
 
@@ -87,12 +92,13 @@ class RegexParser:
         """Extract transaction amount."""
         kw_match = self.AMOUNT_KEYWORD_PATTERN.search(text)
         if kw_match:
-            amount_str = kw_match.group(1) or kw_match.group(2)
-            if amount_str:
-                try:
-                    return float(amount_str.replace(",", ""))
-                except ValueError:
-                    pass
+            # Try each captured group
+            for g in kw_match.groups():
+                if g:
+                    try:
+                        return float(g.replace(",", ""))
+                    except ValueError:
+                        continue
 
         drcr_match = self.AMOUNT_DRCR_PATTERN.search(text)
         if drcr_match:
