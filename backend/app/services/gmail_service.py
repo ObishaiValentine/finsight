@@ -48,9 +48,10 @@ class GmailService:
         flow.redirect_uri = settings.google_redirect_uri
 
         auth_url, _ = flow.authorization_url(
-        access_type='offline',
-        include_granted_scopes='true',
-        state=user_id,
+            access_type='offline',
+            prompt='consent',
+            include_granted_scopes='true',
+            state=user_id,
         )
 
         return auth_url
@@ -134,9 +135,18 @@ class GmailService:
             if not user or not user.get("gmail_access_token"):
                 return None
 
+            if not user.get("gmail_refresh_token"):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        "Gmail connection is stale (missing refresh token). "
+                        "Please disconnect and reconnect your Gmail."
+                    ),
+                )
+
             credentials = Credentials(
                 token=user["gmail_access_token"],
-                refresh_token=user.get("gmail_refresh_token"),
+                refresh_token=user["gmail_refresh_token"],
                 token_uri="https://oauth2.googleapis.com/token",
                 client_id=settings.google_client_id,
                 client_secret=settings.google_client_secret,
@@ -156,6 +166,8 @@ class GmailService:
 
             return credentials
 
+        except HTTPException:
+            raise
         except Exception:
             return None
 
@@ -247,9 +259,7 @@ class GmailService:
         Prefers text/plain; strips HTML if only HTML available.
         """
         try:
-            # Check if this part has sub-parts
             if 'parts' in payload:
-                # First pass: look for text/plain
                 for part in payload['parts']:
                     if part['mimeType'] == 'text/plain':
                         data = part['body'].get('data', '')
@@ -260,7 +270,6 @@ class GmailService:
                         if nested:
                             return nested
 
-                # Second pass: fallback to text/html (strip tags)
                 for part in payload['parts']:
                     if part['mimeType'] == 'text/html':
                         data = part['body'].get('data', '')
@@ -272,7 +281,6 @@ class GmailService:
                         if nested:
                             return nested
             else:
-                # Single part body
                 data = payload['body'].get('data', '')
                 if data:
                     content = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
@@ -289,23 +297,18 @@ class GmailService:
         import re
         import html as html_lib
 
-        # Remove <style> and <script> blocks with their content
         html = re.sub(r'<style[^>]*>[\s\S]*?</style>', '', html, flags=re.IGNORECASE)
         html = re.sub(r'<script[^>]*>[\s\S]*?</script>', '', html, flags=re.IGNORECASE)
 
-        # Replace <br> and </p> with newlines
         html = re.sub(r'<br\s*/?>', '\n', html, flags=re.IGNORECASE)
         html = re.sub(r'</p>', '\n', html, flags=re.IGNORECASE)
         html = re.sub(r'</tr>', '\n', html, flags=re.IGNORECASE)
         html = re.sub(r'</td>', ' ', html, flags=re.IGNORECASE)
 
-        # Remove all remaining HTML tags
         html = re.sub(r'<[^>]+>', '', html)
 
-        # Decode HTML entities (&amp; → &, &nbsp; → space, etc.)
         html = html_lib.unescape(html)
 
-        # Collapse whitespace
         html = re.sub(r'[ \t]+', ' ', html)
         html = re.sub(r'\n\s*\n+', '\n', html)
 
