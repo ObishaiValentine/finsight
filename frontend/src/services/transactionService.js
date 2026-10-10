@@ -48,11 +48,19 @@ export const transactionService = {
     return response.data;
   },
 
-    /**
+  /**
    * Get analytics for charts.
    */
   async getAnalytics() {
     const response = await api.get('/transactions/analytics');
+    return response.data;
+  },
+
+  /**
+   * Update transaction category (NEW).
+   */
+  async updateCategory(id, category) {
+    const response = await api.patch(`/transactions/${id}`, { category });
     return response.data;
   },
 };

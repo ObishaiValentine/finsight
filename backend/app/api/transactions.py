@@ -14,6 +14,42 @@ from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
+from pydantic import BaseModel
+from typing import Optional
+
+class TransactionUpdate(BaseModel):
+    category: Optional[str] = None
+
+
+@router.patch("/{transaction_id}")
+def update_transaction(
+    transaction_id: str,
+    payload: TransactionUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Update transaction fields (currently category only)."""
+    from app.core.supabase_client import supabase
+
+    update_data = {}
+    if payload.category is not None:
+        update_data["category"] = payload.category
+
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    # Ensure the transaction belongs to the current user
+    response = (
+        supabase.table("transactions")
+        .update(update_data)
+        .eq("id", transaction_id)
+        .eq("user_id", current_user["id"])
+        .execute()
+    )
+
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    return response.data[0]
 
 @router.post("", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
 def create_transaction(
