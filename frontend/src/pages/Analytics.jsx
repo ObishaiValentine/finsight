@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { transactionService } from '../services/transactionService';
+import { useSync } from '../hooks/useSync';
 
 // ===== CUSTOM TOOLTIP =====
 function CustomTooltip({ active, payload, label, isDark }) {
@@ -37,6 +38,7 @@ function CustomTooltip({ active, payload, label, isDark }) {
 export default function Analytics({ onReady }) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const { subscribe } = useSync();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -44,26 +46,40 @@ export default function Analytics({ onReady }) {
   const [analytics, setAnalytics] = useState(null);
   const [activeCategory, setActiveCategory] = useState(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const [statsData, analyticsData] = await Promise.all([
-          transactionService.getStats(),
-          transactionService.getAnalytics(),
-        ]);
-        setStats(statsData);
-        setAnalytics(analyticsData);
-      } catch (err) {
-        setError(err.message || 'Failed to load analytics');
-      } finally {
-        setLoading(false);
-        onReady?.();
-      }
-    };
-    fetchData();
+  const fetchData = useCallback(async (showLoader = true) => {
+    if (showLoader) setLoading(true);
+    setError('');
+    try {
+      const [statsData, analyticsData] = await Promise.all([
+        transactionService.getStats(),
+        transactionService.getAnalytics(),
+      ]);
+      setStats(statsData);
+      setAnalytics(analyticsData);
+    } catch (err) {
+      setError(err.message || 'Failed to load analytics');
+    } finally {
+      if (showLoader) setLoading(false);
+      onReady?.();
+    }
   }, [onReady]);
+
+  // Initial fetch
+  useEffect(() => {
+    const init = async () => {
+      await fetchData(true);
+    };
+    init();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Silent refresh on sync/delete/edit events
+  useEffect(() => {
+    const unsubscribe = subscribe(() => {
+      fetchData(false);
+    });
+    return unsubscribe;
+  }, [subscribe, fetchData]);
 
   // Theme-aware chart colors
   const axisColor = isDark ? '#6b7280' : '#94a3b8';
