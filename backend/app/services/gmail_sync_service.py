@@ -41,7 +41,7 @@ class GmailSyncService:
         for domain, bank in BANK_SENDER_MAP.items():
             if domain in sender_lower:
                 return bank
-        
+
         # Fallback: check body for bank names
         body_lower = body.lower()[:500]  # first 500 chars
         if 'carbon' in body_lower:
@@ -64,12 +64,13 @@ class GmailSyncService:
             return 'PalmPay'
         if 'moniepoint' in body_lower:
             return 'Moniepoint'
-        
+
         return 'Unknown'
 
     def _is_duplicate(self, user_id: str, gmail_id: str) -> bool:
-        """Check if this gmail_id already saved for user."""
+        """Check if this gmail_id already saved for user OR previously deleted."""
         try:
+            # Check transactions table
             response = (
                 supabase.table("transactions")
                 .select("id")
@@ -78,15 +79,23 @@ class GmailSyncService:
                 .limit(1)
                 .execute()
             )
-            return bool(response.data)
+            if response.data:
+                return True
+
+            # Check deleted_gmail_ids table
+            deleted = (
+                supabase.table("deleted_gmail_ids")
+                .select("id")
+                .eq("user_id", user_id)
+                .eq("gmail_id", gmail_id)
+                .limit(1)
+                .execute()
+            )
+            return bool(deleted.data)
         except Exception:
             return False
 
     def sync_user_emails(self, user_id: str, max_results: int = 50) -> Dict:
-        """
-        Fetch user's bank alert emails, parse, save to transactions.
-        Returns summary dict.
-        """
         # Step 1: Fetch from Gmail
         alerts = gmail_service.fetch_bank_alerts(
             user_id=user_id,

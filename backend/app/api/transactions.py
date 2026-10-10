@@ -124,19 +124,48 @@ def get_transaction(
     return transaction
 
 
-@router.delete("/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{transaction_id}")
 def delete_transaction(
     transaction_id: str,
     current_user: dict = Depends(get_current_user),
 ):
-    """Delete a transaction."""
-    success = transaction_service.delete_transaction(
-        user_id=current_user["id"],
-        transaction_id=transaction_id,
+    """Delete a transaction. If e come from Gmail, remember the gmail_id so e no come back."""
+    from app.core.supabase_client import supabase
+
+    # Fetch the transaction first — we need its raw_text to know if e come from Gmail
+    existing = (
+        supabase.table("transactions")
+        .select("id, user_id, raw_text")
+        .eq("id", transaction_id)
+        .eq("user_id", current_user["id"])
+        .single()
+        .execute()
     )
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Transaction not found",
-        )
-    return None
+
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    raw_text = existing.data.get("raw_text") or ""
+
+    # If e come from Gmail, save the gmail_id to deleted_gmail_ids so sync no re-add am
+    if raw_text.startswith("gmail_id:"):
+        gmail_id = raw_text.replace("gmail_id:", "").strip()
+        if gmail_id:
+            try:
+                supabase.table("deleted_gmail_ids").upsert(
+                    {
+                        "user_id": current_user["id"],
+                        "gmail_id": gmail_id,
+                    },
+                    on_conflict="user_id,gmail_id",
+                ).execute()
+            except Exception:
+                # If e fail, just continue — no need to block the delete
+                pass
+
+    # Now delete the transaction
+    supabase.table("transactions").delete().eq("id", transaction_id).eq(
+        "user_id", current_user["id"]
+    ).execute()
+
+    return {"message": "Transaction deleted"}
