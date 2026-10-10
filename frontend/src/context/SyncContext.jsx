@@ -31,6 +31,11 @@ export function SyncProvider({ children }) {
     });
   }, []);
 
+  // Manually trigger a refresh broadcast — used after delete/edit
+  const broadcastRefresh = useCallback(() => {
+    emitSyncComplete({ manual: true });
+  }, [emitSyncComplete]);
+
   const refreshStatus = useCallback(async () => {
     if (!isAuthenticated) return;
     setStatusLoading(true);
@@ -160,6 +165,7 @@ export function SyncProvider({ children }) {
         connect,
         disconnect,
         subscribe,
+        broadcastRefresh,   // 👈 NEW
       }}
     >
       {children}

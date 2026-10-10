@@ -65,7 +65,7 @@ function saveHiddenIds(ids) {
 
 export default function Transactions({ onReady }) {
   const { searchQuery, setSearchQuery } = useSearch();
-  const { subscribe } = useSync();
+  const { subscribe, broadcastRefresh } = useSync();
 
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -223,6 +223,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
       setDeleteTx(null);
       setDetailTx(null);
       await fetchTransactions(false);
+      broadcastRefresh();   // 👈 notify other pages
     } catch (err) {
       setDeleteError(err.message || 'Failed to delete transaction');
     } finally {
@@ -248,6 +249,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
       );
       setDetailTx({ ...detailTx, category: updated.category || newCategory });
       setEditingCategory(false);
+      broadcastRefresh();
     } catch (err) {
       setCategoryError(err.message || 'Failed to update category');
     } finally {
@@ -777,7 +779,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
               <div className="flex gap-2 p-4 border-t border-app shrink-0 flex-wrap">
                 <button
                   onClick={() => handleCopyDetails(detailTx)}
-                  className="flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2.5 rounded-lg bg-elevated border border-app text-sm font-medium text-primary hover:border-blue-500 transition-colors"
+                  className="flex-1 min-w-25 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-elevated border border-app text-sm font-medium text-primary hover:border-blue-500 transition-colors"
                 >
                   {copied ? (
                     <>
@@ -798,7 +800,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                       handleUnhide(detailTx);
                       setDetailTx(null);
                     }}
-                    className="flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm font-medium text-amber-500 hover:bg-amber-500/20 transition-colors"
+                    className="flex-1 min-w-25 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm font-medium text-amber-500 hover:bg-amber-500/20 transition-colors"
                   >
                     <Eye size={14} />
                     Unhide
@@ -806,7 +808,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                 ) : (
                   <button
                     onClick={() => handleHide(detailTx)}
-                    className="flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2.5 rounded-lg bg-elevated border border-app text-sm font-medium text-primary hover:border-amber-500 transition-colors"
+                    className="flex-1 min-w-25 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-elevated border border-app text-sm font-medium text-primary hover:border-amber-500 transition-colors"
                   >
                     <EyeOff size={14} />
                     Hide
@@ -815,7 +817,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
 
                 <button
                   onClick={() => setDeleteTx(detailTx)}
-                  className="flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-sm font-medium text-red-500 hover:bg-red-500/20 transition-colors"
+                  className="flex-1 min-w-25 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-sm font-medium text-red-500 hover:bg-red-500/20 transition-colors"
                 >
                   <Trash2 size={14} />
                   Delete
@@ -935,7 +937,7 @@ function formatFullDate(dateString) {
   if (!dateString) return '—';
   const date = new Date(dateString);
   return date.toLocaleString('en-NG', {
-    weekday: 'short',
+    weekday: 'short', 
     month: 'short',
     day: 'numeric',
     year: 'numeric',
