@@ -27,7 +27,7 @@ import {
 import { accountService } from '../services/accountService';
 import BankLogo from '../components/BankLogo';
 import { SUPPORTED_BANKS } from '../utils/banks';
-import { gmailService } from '../services/gmailService';
+import { useSync } from '../hooks/useSync';
 
 const SORT_OPTIONS = [
   { value: 'date_desc', label: 'Newest first' },
@@ -75,10 +75,18 @@ export default function Accounts({ onReady }) {
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState('');
 
-  // Gmail state
-  const [gmailStatus, setGmailStatus] = useState({ connected: false, email: null });
-  const [gmailLoading, setGmailLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
+  // Shared Gmail + sync state
+  const {
+    isConnected: gmailConnected,
+    gmailEmail,
+    isSyncing: syncing,
+    statusLoading: gmailLoading,
+    connect: connectGmail,
+    syncNow,
+    disconnect: disconnectGmail,
+    subscribe,
+  } = useSync();
+
   const [syncResult, setSyncResult] = useState(null);
   const [gmailError, setGmailError] = useState('');
 
@@ -123,75 +131,46 @@ export default function Accounts({ onReady }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Gmail status + OAuth redirect handler
+  // Subscribe to sync-complete events — refresh accounts when sync finishes
   useEffect(() => {
-    const loadGmailStatus = async () => {
-      setGmailLoading(true);
-      try {
-        const status = await gmailService.getStatus();
-        setGmailStatus(status);
-      } catch {
-        // Silent
-      } finally {
-        setGmailLoading(false);
+    const unsubscribe = subscribe((result) => {
+      if (result && !result.error) {
+        setSyncResult({
+          type: 'success',
+          message: `Synced ${result.synced} new transaction${result.synced !== 1 ? 's' : ''} (${result.skipped_duplicates} skipped)`,
+        });
+        setTimeout(() => setSyncResult(null), 6000);
+        // Refresh accounts to reflect new data
+        fetchAccounts();
       }
-
-      const params = new URLSearchParams(window.location.search);
-      const gmailParam = params.get('gmail');
-      const emailParam = params.get('email');
-
-      if (gmailParam === 'success') {
-        setGmailStatus({ connected: true, email: emailParam });
-        setSyncResult({ type: 'success', message: `Gmail connected: ${emailParam}` });
-        setTimeout(() => setSyncResult(null), 5000);
-        window.history.replaceState({}, '', window.location.pathname);
-      } else if (gmailParam === 'error') {
-        setGmailError('Failed to connect Gmail. Please try again.');
-        setTimeout(() => setGmailError(''), 5000);
-        window.history.replaceState({}, '', window.location.pathname);
-      }
-    };
-
-    loadGmailStatus();
-  }, []);
+    });
+    return unsubscribe;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subscribe]);
 
   const handleConnectGmail = async () => {
     try {
       setGmailError('');
-      const { auth_url } = await gmailService.getAuthUrl();
-      window.location.href = auth_url;
+      await connectGmail();
     } catch (err) {
       setGmailError(err.message || 'Failed to start Gmail connection');
     }
   };
 
   const handleSyncGmail = async () => {
-    setSyncing(true);
     setSyncResult(null);
     setGmailError('');
-
-    try {
-      const result = await gmailService.syncEmails(50);
-      setSyncResult({
-        type: 'success',
-        message: `Synced ${result.synced} new transaction${result.synced !== 1 ? 's' : ''} (${result.skipped_duplicates} skipped)`,
-      });
-
-      await fetchAccounts();
-
-      setTimeout(() => setSyncResult(null), 6000);
-    } catch (err) {
-      setGmailError(err.message || 'Sync failed');
-    } finally {
-      setSyncing(false);
+    const result = await syncNow(50, false);
+    if (result?.error) {
+      setGmailError(result.error);
     }
+    // Success message handled by the subscribe effect above
   };
 
   const handleDisconnectGmail = async () => {
     if (!window.confirm('Disconnect Gmail? You can reconnect anytime.')) return;
     try {
-      await gmailService.disconnect();
-      setGmailStatus({ connected: false, email: null });
+      await disconnectGmail();
       setSyncResult({ type: 'success', message: 'Gmail disconnected' });
       setTimeout(() => setSyncResult(null), 3000);
     } catch (err) {
@@ -462,20 +441,20 @@ export default function Accounts({ onReady }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.15 }}
         className={`glass rounded-xl p-5 border transition-colors ${
-          gmailStatus.connected
+          gmailConnected
             ? 'border-green-500/20 bg-green-500/5'
             : 'border-blue-500/20 bg-blue-500/5'
         }`}
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-            gmailStatus.connected
+            gmailConnected
               ? 'bg-linear-to-br from-green-500 to-emerald-500'
               : 'bg-linear-to-br from-blue-500 to-cyan-400'
           }`}>
             {gmailLoading ? (
               <Loader2 size={22} className="text-white animate-spin" />
-            ) : gmailStatus.connected ? (
+            ) : gmailConnected ? (
               <CheckCircle2 size={22} className="text-white" />
             ) : (
               <Mail size={22} className="text-white" />
@@ -485,9 +464,9 @@ export default function Accounts({ onReady }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <h3 className="text-base font-bold text-primary">
-                {gmailStatus.connected ? 'Gmail Connected' : 'Connect Your Gmail'}
+                {gmailConnected ? 'Gmail Connected' : 'Connect Your Gmail'}
               </h3>
-              {gmailStatus.connected && (
+              {gmailConnected && (
                 <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-green-500/15 text-green-500 border border-green-500/20">
                   Active
                 </span>
@@ -496,8 +475,8 @@ export default function Accounts({ onReady }) {
             <p className="text-xs text-secondary truncate">
               {gmailLoading
                 ? 'Checking connection...'
-                : gmailStatus.connected
-                ? gmailStatus.email
+                : gmailConnected
+                ? gmailEmail
                 : 'Auto-fetch bank alerts from Gmail — no manual entry'}
             </p>
 
@@ -523,7 +502,7 @@ export default function Accounts({ onReady }) {
           </div>
 
           <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
-            {gmailStatus.connected ? (
+            {gmailConnected ? (
               <>
                 <button
                   onClick={handleSyncGmail}
@@ -1426,7 +1405,13 @@ export default function Accounts({ onReady }) {
                 >
                   Maybe Later
                 </button>
-                <button className="flex-1 px-4 py-2.5 rounded-lg bg-linear-to-r from-blue-600 to-cyan-500 text-white text-sm font-medium hover:opacity-90 transition-opacity">
+                <button
+                  onClick={() => {
+                    setConnectModalOpen(false);
+                    handleConnectGmail();
+                  }}
+                  className="flex-1 px-4 py-2.5 rounded-lg bg-linear-to-r from-blue-600 to-cyan-500 text-white text-sm font-medium hover:opacity-90 transition-opacity"
+                >
                   Connect Email
                 </button>
               </div>
