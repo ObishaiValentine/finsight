@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Wallet, TrendingUp, TrendingDown, PiggyBank, Plus, Mail,
+  Wallet, TrendingUp, TrendingDown, PiggyBank, Plus,
   ArrowUpRight, ArrowDownLeft, Loader2,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigation } from '../hooks/useNavigation';
+import { useSync } from '../hooks/useSync';
 import { transactionService } from '../services/transactionService';
 import AuroraBackground from '../components/AuroraBackground';
+import ConnectEmailButton from '../components/ConnectEmailButton';
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -45,6 +47,7 @@ export default function Dashboard({ onReady }) {
   const { theme } = useTheme();
   const { user } = useAuth();
   const { setActivePage } = useNavigation();
+  const { subscribe } = useSync();
   const isDark = theme === 'dark';
 
   const [stats, setStats] = useState(null);
@@ -56,38 +59,42 @@ export default function Dashboard({ onReady }) {
   const firstName = getFirstName(user);
   const displayName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
 
+  const fetchData = useCallback(async (showLoader = true) => {
+    if (showLoader) setLoading(true);
+    setError('');
+    try {
+      const [statsData, transactionsData] = await Promise.all([
+        transactionService.getStats(),
+        transactionService.getTransactions({ page: 1, pageSize: 5 }),
+      ]);
+      setStats(statsData);
+      setRecentTransactions(transactionsData.transactions || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load data');
+    } finally {
+      if (showLoader) setLoading(false);
+      onReady?.();
+    }
+  }, [onReady]);
+
+  // Initial fetch — wrapped in async to satisfy React 19
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const [statsData, transactionsData] = await Promise.all([
-          transactionService.getStats(),
-          transactionService.getTransactions({ page: 1, pageSize: 5 }),
-        ]);
-        setStats(statsData);
-        setRecentTransactions(transactionsData.transactions || []);
-      } catch (err) {
-        setError(err.message || 'Failed to load data');
-      } finally {
-        setLoading(false);
-        // ✅ Signal that page is ready
-        onReady?.();
-      }
+    const init = async () => {
+      await fetchData(true);
     };
-    fetchData();
+    init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Silent refresh when a sync completes
+  useEffect(() => {
+    const unsubscribe = subscribe(() => {
+      fetchData(false);
+    });
+    return unsubscribe;
+  }, [subscribe, fetchData]);
+
   const statCards = [
-    {
-      label: 'Cash Flow',
-      value: formatAmount(stats?.net_balance || 0),
-      change: (stats?.net_balance || 0) >= 0 ? 'Positive' : 'Negative',
-      trend: (stats?.net_balance || 0) >= 0 ? 'up' : 'down',
-      icon: Wallet,
-      color: 'from-blue-500 to-cyan-400',
-    },
     {
       label: 'Income',
       value: formatAmount(stats?.total_income || 0),
@@ -129,15 +136,14 @@ export default function Dashboard({ onReady }) {
         </p>
       </motion.div>
 
+      {/* QUICK ACTIONS — now using shared ConnectEmailButton */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
         className="flex flex-wrap gap-3"
       >
-        <button className="flex items-center gap-2 px-4 py-2 bg-linear-to-r from-blue-600 to-cyan-500 rounded-lg text-white text-sm font-medium hover:opacity-90 transition-opacity">
-          <Mail size={16} /> Connect Email
-        </button>
+        <ConnectEmailButton />
         <button
           onClick={() => setActivePage('parser')}
           className="flex items-center gap-2 px-4 py-2 bg-card border border-app rounded-lg text-secondary text-sm font-medium hover:border-blue-500 transition-colors"
@@ -152,6 +158,7 @@ export default function Dashboard({ onReady }) {
         </div>
       )}
 
+      {/* CASH FLOW CARD */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -200,8 +207,9 @@ export default function Dashboard({ onReady }) {
         </div>
       </motion.div>
 
+      {/* STAT CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {statCards.slice(1, 4).map((stat, i) => (
+        {statCards.map((stat, i) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 20 }}
@@ -230,6 +238,7 @@ export default function Dashboard({ onReady }) {
         ))}
       </div>
 
+      {/* RECENT TRANSACTIONS */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
