@@ -962,3 +962,101 @@ Oct 15, 2026	v1.0	Initial PROJECT_STATE.md created — full project brain
 
 ### Session 005 (Next)
 - Files to be added as we build
+
+---
+
+AI CODE ACCESS PERMISSION
+
+### Permission Granted
+The AI assistant has **permission to request** any code file(s) from the human when needed to:
+- Understand existing patterns before building new features
+- Debug issues that span multiple files
+- Refactor or upgrade existing code
+- Ensure consistency with the current codebase
+
+### How It Works
+When the AI needs to see a file, it will ask:
+> "Please paste `frontend/src/components/Layout.jsx` so I can match its patterns."
+
+The human pastes the file content. The AI reads it. The AI then produces code that fits.
+
+### When AI Should Request Files
+- **Before building new components** that should match existing ones
+- **Before refactoring** any existing code
+- **When debugging** bugs that might come from other files
+- **Before adding new dependencies** (to check what's already installed)
+- **When the AI is uncertain** about a pattern
+
+### When AI Should NOT Request Files
+- **If it already saw the file in this session** — use the existing knowledge
+- **If it's a fresh build** with no existing precedent — just build cleanly
+- **If the file is trivially standardized** (e.g., simple config files) — use best practices
+
+### Anti-Hoarding Rule
+If the AI has already seen a file **in the current chat**, it should NOT ask for it again. It should reference it from memory.
+
+---
+
+CODE CONVENTIONS & PATTERNS
+
+### Frontend Patterns
+- **Component style:** Functional components with named exports
+- **Styling:** Tailwind v4 (use `bg-linear-to-br`, NOT `bg-gradient-to-br`)
+- **Animations:** Framer Motion (`motion.div`, `AnimatePresence`)
+- **State:** React Context for global, useState for local
+- **API calls:** Via service modules in `src/services/`
+- **Icons:** Lucide React only
+- **Class helper:** `cn()` from `src/lib/utils.js`
+- **Routing:** `activePage` via `useNavigation()` (no react-router for app pages, yet)
+- **Theming:** `useTheme()` returns `{ theme, toggleTheme }` — dark/light
+
+### Backend Patterns
+- **Framework:** FastAPI with dependency injection
+- **Auth:** `Depends(get_current_user)` on protected routes
+- **DB client:** `supabase` (service role) for admin ops
+- **Validation:** Pydantic schemas
+- **Error handling:** Raise `HTTPException` with `status_code` + `detail`
+- **Modules:** Service layer wraps Supabase + business logic
+- **CORS:** Handled in `app/main.py`
+
+### Naming Conventions
+- **React components:** `PascalCase.jsx`
+- **Hooks:** `useCamelCase.js`
+- **Services:** `camelCaseService.js`
+- **Python modules:** `snake_case.py`
+- **Python classes:** `PascalCase`
+- **DB columns:** `snake_case`
+
+### Custom Tailwind Utilities (from `index.css`)
+- `.glass` — Glassmorphism background + border
+- `.gradient-text` — Blue → cyan gradient text
+
+### Key Context APIs
+- `useSync()` → `{ isConnected, gmailEmail, isSyncing, statusLoading, lastSyncTime, lastResult, refreshStatus, syncNow, connect, disconnect, subscribe, broadcastRefresh }`
+- `useAuth()` → `{ user, isLoading, isAuthenticated, login, signup, logout, refreshUser }`
+- `useNavigation()` → `{ activePage, setActivePage }`
+- `useSearch()` → `{ searchQuery, setSearchQuery }`
+- `useTheme()` → `{ theme, toggleTheme }`
+
+### Key Service Modules
+- `api.js` — Axios instance with JWT interceptor + 401 auto-logout
+- `authService.js` — signup, login, profile, password, delete account
+- `accountService.js` — account CRUD + archive/restore
+- `transactionService.js` — list, stats, analytics, parse, delete, category update
+- `parserService.js` — parse, parse-batch, samples
+- `gmailService.js` — connect, status, sync, disconnect
+- `autoSyncService.js` — background auto-sync orchestration
+
+---
+
+RECENT FILE CHANGES
+
+### Session 004 (October 15, 2026)
+- `PROJECT_STATE.md` — Created (project brain)
+
+### Session 005 (October 16, 2026)
+- `PROJECT_STATE.md` — Added sections 21–23 (AI code access, conventions, file changes)
+
+### Session 006+ (Coming up)
+- Files to be added as we build the landing page
+- Will be logged here after each session
