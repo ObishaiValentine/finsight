@@ -922,3 +922,43 @@ Need emergency backup	Use ChatGPT
 20. VERSION HISTORY
 Date	Version	Changes
 Oct 15, 2026	v1.0	Initial PROJECT_STATE.md created — full project brain
+
+## 21. CODE CONVENTIONS & PATTERNS
+
+### Frontend Patterns
+- **Component style:** Functional components with named exports
+- **Styling:** Tailwind v4 (use `bg-linear-to-br`, not `bg-gradient-to-br`)
+- **Animations:** Framer Motion (`motion.div`, `AnimatePresence`)
+- **State:** React Context for global, useState for local
+- **API calls:** Via service modules in `src/services/`
+- **Icons:** Lucide React only
+- **Class helper:** `cn()` from `src/lib/utils.js`
+
+### Backend Patterns
+- **Framework:** FastAPI with dependency injection
+- **Auth:** `Depends(get_current_user)` on protected routes
+- **DB client:** `supabase` (service role) for admin ops
+- **Validation:** Pydantic schemas
+- **Error handling:** Raise `HTTPException` with `status_code` + `detail`
+
+### Naming Conventions
+- **React components:** `PascalCase.jsx`
+- **Hooks:** `useCamelCase.js`
+- **Services:** `camelCaseService.js`
+- **Python modules:** `snake_case.py`
+- **Python classes:** `PascalCase`
+
+### Key Component APIs (quick reference)
+- `useSync()` → `{ isConnected, gmailEmail, isSyncing, syncNow, connect, disconnect, subscribe, broadcastRefresh }`
+- `useAuth()` → `{ user, isAuthenticated, login, signup, logout, refreshUser }`
+- `useNavigation()` → `{ activePage, setActivePage }`
+- `transactionService.getTransactions({ page, pageSize, transactionType, bankName })`
+- `gmailService.syncEmails(maxResults)`
+
+## 22. RECENT FILE CHANGES
+
+### Session 004 (October 15, 2026)
+- `PROJECT_STATE.md` — Created (this file)
+
+### Session 005 (Next)
+- Files to be added as we build
