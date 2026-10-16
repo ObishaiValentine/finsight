@@ -9,6 +9,7 @@ import Settings from './pages/Settings';
 import Parser from './pages/Parser';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import Landing from './pages/Landing';
 import { useNavigation } from './hooks/useNavigation';
 import { useAuth } from './hooks/useAuth';
 
@@ -24,8 +25,8 @@ function App() {
   const { activePage } = useNavigation();
   const { isAuthenticated, isLoading } = useAuth();
   const [authView, setAuthView] = useState('login');
+  const [showLanding, setShowLanding] = useState(true);
 
-  // Initial app loading
   if (isLoading) {
     return (
       <div className="min-h-dvh bg-app flex items-center justify-center">
@@ -49,11 +50,45 @@ function App() {
     );
   }
 
+  // Not authenticated — show landing, then auth pages
   if (!isAuthenticated) {
-    if (authView === 'signup') {
-      return <Signup onSwitchToLogin={() => setAuthView('login')} />;
+    if (showLanding) {
+      return (
+        <Landing
+          onNavigateToAuth={(view) => {
+            setAuthView(view);
+            setShowLanding(false);
+          }}
+          onGoToApp={() => setShowLanding(false)}
+        />
+      );
     }
-    return <Login onSwitchToSignup={() => setAuthView('signup')} />;
+
+    if (authView === 'signup') {
+      return (
+        <Signup
+          onSwitchToLogin={() => setAuthView('login')}
+          onBackToLanding={() => setShowLanding(true)}
+        />
+      );
+    }
+
+    return (
+      <Login
+        onSwitchToSignup={() => setAuthView('signup')}
+        onBackToLanding={() => setShowLanding(true)}
+      />
+    );
+  }
+
+  // Authenticated — show landing if user chose to view it, else app
+  if (showLanding) {
+    return (
+      <Landing
+        onNavigateToAuth={() => {}}
+        onGoToApp={() => setShowLanding(false)}
+      />
+    );
   }
 
   const renderPage = () => {
