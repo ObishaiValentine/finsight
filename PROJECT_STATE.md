@@ -1049,7 +1049,7 @@ CODE CONVENTIONS & PATTERNS
 
 ---
 
-RECENT FILE CHANGES
+## 23. RECENT FILE CHANGES
 
 ### Session 004 (October 15, 2026)
 - `PROJECT_STATE.md` — Created (project brain)
@@ -1060,3 +1060,42 @@ RECENT FILE CHANGES
 ### Session 006+ (Coming up)
 - Files to be added as we build the landing page
 - Will be logged here after each session
+
+---
+
+## 24. SESSION LOG UPDATE
+
+### Session 005 — Landing Page (Hero, Features, Mobile Showcase) 🟢
+- **Routing & App.jsx:** Updated `App.jsx` to include Landing page logic. If unauthenticated, users see the Landing page before Auth.
+- **LandingNav:** Created a sticky, scroll-aware navigation bar with mobile menu and theme toggle.
+- **Hero Section:** Built a premium Hero with animated aurora backgrounds. 
+- **Stacked Previews:** Implemented an interactive stacked-carousel for the desktop preview. Includes 3 synced screenshots (Dashboard, Analytics, Accounts). 
+- **Hidden Controls:** Replaced visible arrows with invisible left/right click zones on the preview to change stacks.
+- **Features Section:** Built the Features section with 4 alternating rows (Auto-Parse, Multi-Bank, Insights, Security) using the AI-generated images (now correctly linking `.jpg`).
+- **Mobile Showcase Section:** Created a dedicated section for mobile. Removed the messy overlap and used the newly generated transparent phone mockup image (`Phone-mockup.png`) floating cleanly.
+- **Theme Support:** Wired the entire Landing page to `useTheme()` so light/dark mode works perfectly across all new components.
+
+---
+
+## 25. NEXT SESSION INSTRUCTIONS
+
+### The Immediate Next Task
+**Build the "How It Works" section for the Landing Page.**
+
+### Design Plan for "How It Works"
+- **Section Header:** "How FinSight Works" with a brief subtitle.
+- **3-Step Flow:** 
+  1. *Connect your Gmail* (Secure OAuth)
+  2. *Auto-Parse* (Hybrid Regex-NER engine extracts data)
+  3. *Track & Save* (See real-time insights and dashboards)
+- **Visuals:** Use icons, connecting lines (Framer Motion animated), and alternating light/dark mode cards.
+- **Components:** Create `frontend/src/components/landing/HowItWorks.jsx` and add it to `Landing.jsx`.
+
+### Remaining Landing Page Sections (After How It Works)
+- Security & Privacy
+- Pricing
+- FAQ
+- Final CTA
+- Footer
+
+---
