@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../context/ThemeContext';
 import ThemeToggle from '../ThemeToggle';
 
 const navLinks = [
@@ -13,6 +14,8 @@ const navLinks = [
 
 export default function LandingNav({ onGoToApp, onNavigateToAuth }) {
   const { isAuthenticated } = useAuth();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -36,14 +39,15 @@ export default function LandingNav({ onGoToApp, onNavigateToAuth }) {
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? 'bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-white/6'
+          ? isDark
+            ? 'bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-white/6'
+            : 'bg-white/80 backdrop-blur-xl border-b border-slate-200'
           : 'bg-transparent'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
 
-          {/* Logo */}
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className="flex items-center gap-2 shrink-0"
@@ -51,20 +55,22 @@ export default function LandingNav({ onGoToApp, onNavigateToAuth }) {
             <h1 className="text-xl md:text-2xl font-bold gradient-text">FinSight</h1>
           </button>
 
-          {/* Desktop Nav Links */}
           <nav className="hidden lg:flex items-center gap-1">
             {navLinks.map((link) => (
               <button
                 key={link.label}
                 onClick={() => handleNavClick(link.href)}
-                className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-white/4"
+                className={`px-4 py-2 text-sm font-medium transition-colors rounded-lg ${
+                  isDark
+                    ? 'text-gray-400 hover:text-white hover:bg-white/4'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
               >
                 {link.label}
               </button>
             ))}
           </nav>
 
-          {/* Right Actions */}
           <div className="flex items-center gap-2 md:gap-3">
             <div className="hidden sm:block">
               <ThemeToggle />
@@ -82,7 +88,9 @@ export default function LandingNav({ onGoToApp, onNavigateToAuth }) {
               <>
                 <button
                   onClick={() => onNavigateToAuth('login')}
-                  className="hidden sm:block px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
+                  className={`hidden sm:block px-4 py-2 text-sm font-medium transition-colors ${
+                    isDark ? 'text-gray-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                  }`}
                 >
                   Log in
                 </button>
@@ -97,7 +105,9 @@ export default function LandingNav({ onGoToApp, onNavigateToAuth }) {
 
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="lg:hidden p-2 text-gray-300 hover:text-white transition-colors"
+              className={`lg:hidden p-2 transition-colors ${
+                isDark ? 'text-gray-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+              }`}
               aria-label="Toggle menu"
             >
               {mobileOpen ? <X size={22} /> : <Menu size={22} />}
@@ -106,7 +116,6 @@ export default function LandingNav({ onGoToApp, onNavigateToAuth }) {
         </div>
       </div>
 
-      {/* Mobile Menu */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
@@ -114,20 +123,28 @@ export default function LandingNav({ onGoToApp, onNavigateToAuth }) {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="lg:hidden overflow-hidden bg-[#0a0a0f]/95 backdrop-blur-xl border-t border-white/6"
+            className={`lg:hidden overflow-hidden border-t ${
+              isDark
+                ? 'bg-[#0a0a0f]/95 backdrop-blur-xl border-white/6'
+                : 'bg-white/95 backdrop-blur-xl border-slate-200'
+            }`}
           >
             <div className="px-4 py-6 space-y-2">
               {navLinks.map((link) => (
                 <button
                   key={link.label}
                   onClick={() => handleNavClick(link.href)}
-                  className="block w-full text-left px-4 py-3 text-base font-medium text-gray-300 hover:text-white hover:bg-white/4 rounded-lg transition-colors"
+                  className={`block w-full text-left px-4 py-3 text-base font-medium rounded-lg transition-colors ${
+                    isDark
+                      ? 'text-gray-300 hover:text-white hover:bg-white/4'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
                 >
                   {link.label}
                 </button>
               ))}
 
-              <div className="pt-4 border-t border-white/6 space-y-2">
+              <div className={`pt-4 border-t space-y-2 ${isDark ? 'border-white/6' : 'border-slate-200'}`}>
                 <div className="flex justify-end">
                   <ThemeToggle />
                 </div>
@@ -144,7 +161,11 @@ export default function LandingNav({ onGoToApp, onNavigateToAuth }) {
                   <>
                     <button
                       onClick={() => { setMobileOpen(false); onNavigateToAuth('login'); }}
-                      className="w-full px-4 py-3 rounded-lg border border-white/10 text-white text-sm font-medium hover:bg-white/4 transition-colors"
+                      className={`w-full px-4 py-3 rounded-lg border text-sm font-medium transition-colors ${
+                        isDark
+                          ? 'border-white/10 text-white hover:bg-white/4'
+                          : 'border-slate-300 text-slate-900 hover:bg-slate-100'
+                      }`}
                     >
                       Log in
                     </button>
