@@ -1,7 +1,7 @@
 """Transaction service — handle CRUD operations."""
 
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 from fastapi import HTTPException, status
 
@@ -141,7 +141,7 @@ class TransactionService:
             return False
 
     def get_stats(self, user_id: str) -> Dict:
-        """Get transaction statistics for dashboard."""
+        """Get transaction statistics for dashboard, including today's activity."""
         try:
             response = (
                 supabase.table("transactions")
@@ -151,18 +151,51 @@ class TransactionService:
             )
             transactions = response.data or []
 
-            total_income = sum(
-                t["amount"] for t in transactions if t["transaction_type"] == "credit"
-            )
-            total_expenses = sum(
-                t["amount"] for t in transactions if t["transaction_type"] == "debit"
-            )
+            total_income = 0
+            total_expenses = 0
+            today_income = 0
+            today_expenses = 0
+            
+            # Get today's date in UTC
+            now = datetime.now(timezone.utc)
+            today_date = now.date()
+
+            for t in transactions:
+                amount = t["amount"]
+                tx_type = t["transaction_type"]
+
+                # 1. Calculate All-Time Totals
+                if tx_type == "credit":
+                    total_income += amount
+                elif tx_type == "debit":
+                    total_expenses += amount
+
+                # 2. Calculate Today's Totals
+                date_str = t.get("transaction_date")
+                if date_str:
+                    try:
+                        # Parse the transaction date, handling 'Z' timezone
+                        tx_date_str = date_str.replace("Z", "+00:00")
+                        tx_date = datetime.fromisoformat(tx_date_str).date()
+                        
+                        # If the transaction happened today
+                        if tx_date == today_date:
+                            if tx_type == "credit":
+                                today_income += amount
+                            elif tx_type == "debit":
+                                today_expenses += amount
+                    except Exception:
+                        continue
 
             return {
                 "total_transactions": len(transactions),
                 "total_income": round(total_income, 2),
                 "total_expenses": round(total_expenses, 2),
                 "net_balance": round(total_income - total_expenses, 2),
+                # NEW FIELDS:
+                "today_income": round(today_income, 2),
+                "today_expenses": round(today_expenses, 2),
+                "today_net": round(today_income - today_expenses, 2),
             }
 
         except Exception as e:

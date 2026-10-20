@@ -1128,4 +1128,36 @@ Now that the Landing Page is done, we need to focus on the actual application ro
 ### Notes for Future (Phase 2+)
 - **Footer:** Add real social media links (X, GitHub, LinkedIn) and real legal pages (Privacy Policy, Terms of Service).
 - **Pricing:** Audit the actual built features and revise the pricing tiers before launching paid plans.
+
+---
+
+## 28. SESSION LOG UPDATE
+
+### Session 007 — App Routing & Navigation Polish 🟢
+- **Session Logic (App.jsx):** Implemented the 15-minute inactivity logic. Users who have been away for >15 mins are shown the Landing Page first, while active users go straight to the Dashboard. Wrapped in a `setTimeout` to satisfy React 19 strict mode warnings.
+- **Auth Pages:** Replaced the clunky "Back to Home" button on Login and Signup with clickable brand logos (desktop and mobile versions). Much cleaner, modern SaaS pattern.
+- **Sidebar Logo:** Updated `Layout.jsx` to make the "FinSight" branding in the sidebar clickable. Clicking it now resets the view back to the Landing Page (`onGoHome`).
+- **Fixes:** Replaced broken Lucide brand icons (Twitter/GitHub) with custom inline SVGs in the Footer to prevent Vite build crashes.
+
+---
+
+## 29. NEXT SESSION INSTRUCTIONS
+
+### The Immediate Next Task
+**Build the Password Reset Flow.**
+
+### Design Plan for Password Reset
+1. **Forgot Password UI:** Add a "Forgot Password?" view or modal triggered from the Login page. It should just ask for the user's email.
+2. **Supabase Trigger:** Wire the submit button to call `supabase.auth.resetPasswordForEmail(email)`.
+3. **Update Password UI:** Create a page/route where users land after clicking the email link (Supabase redirects them with a token). This page will have two fields: "New Password" and "Confirm Password".
+4. **Update logic:** Call `supabase.auth.updateUser({ password: new_password })` and redirect them to the dashboard with a success toast.
+
+### Remaining Tasks (Phase 1)
+- Onboarding Tour for new users
+- Email notifications (transaction alerts)
+- Google Sign-In (OAuth)
+- PWA (installable on mobile)
+- Error monitoring (Sentry)
+- Basic rate limiting on backend
+- Set up CI/CD (GitHub Actions)
 ---

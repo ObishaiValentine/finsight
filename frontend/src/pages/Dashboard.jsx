@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Wallet, TrendingUp, TrendingDown, PiggyBank, Plus,
-  ArrowUpRight, ArrowDownLeft, Loader2,
+  Wallet, TrendingUp, TrendingDown, Plus,
+  ArrowUpRight, ArrowDownLeft, Loader2, Activity
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigation } from '../hooks/useNavigation';
-import { useSync } from '../hooks/useSync';
+import { useSync } from '../context/SyncContext';
 import { transactionService } from '../services/transactionService';
 import AuroraBackground from '../components/AuroraBackground';
 import ConnectEmailButton from '../components/ConnectEmailButton';
@@ -94,32 +94,7 @@ export default function Dashboard({ onReady }) {
     return unsubscribe;
   }, [subscribe, fetchData]);
 
-  const statCards = [
-    {
-      label: 'Income',
-      value: formatAmount(stats?.total_income || 0),
-      change: 'Credits',
-      trend: 'up',
-      icon: TrendingUp,
-      color: 'from-green-500 to-emerald-400',
-    },
-    {
-      label: 'Expenses',
-      value: formatAmount(stats?.total_expenses || 0),
-      change: 'Debits',
-      trend: 'down',
-      icon: TrendingDown,
-      color: 'from-red-500 to-orange-400',
-    },
-    {
-      label: 'Total Transactions',
-      value: stats?.total_transactions || 0,
-      change: 'All time',
-      trend: 'up',
-      icon: PiggyBank,
-      color: 'from-purple-500 to-pink-400',
-    },
-  ];
+  const todayNet = (stats?.today_income || 0) - (stats?.today_expenses || 0);
 
   return (
     <div className="space-y-6">
@@ -136,7 +111,7 @@ export default function Dashboard({ onReady }) {
         </p>
       </motion.div>
 
-      {/* QUICK ACTIONS — now using shared ConnectEmailButton */}
+      {/* QUICK ACTIONS */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -207,35 +182,92 @@ export default function Dashboard({ onReady }) {
         </div>
       </motion.div>
 
-      {/* STAT CARDS */}
+      {/* NEW STAT CARDS GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {statCards.map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 + i * 0.1 }}
-            whileHover={{ y: -4 }}
-            className="glass rounded-xl p-5 cursor-pointer"
-          >
+        
+        {/* 1. TODAY'S ACTIVITY */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          whileHover={{ y: -4 }}
+          className={`rounded-xl p-5 cursor-pointer relative overflow-hidden border transition-colors ${
+            isDark ? 'bg-[#13131a] border-white/5' : 'bg-white border-slate-200 shadow-sm'
+          }`}
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-2xl -translate-y-10 translate-x-10" />
+          <div className="relative">
             <div className="flex items-start justify-between mb-4">
-              <div className={`w-10 h-10 rounded-lg bg-linear-to-br ${stat.color} flex items-center justify-center`}>
-                <stat.icon size={20} className="text-white" />
+              <div className="w-10 h-10 rounded-lg bg-linear-to-br from-purple-500 to-pink-400 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                <Activity size={20} className="text-white" />
               </div>
-              <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                stat.trend === 'up'
-                  ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                  : 'bg-red-500/10 text-red-600 dark:text-red-400'
+              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${
+                todayNet >= 0 
+                  ? 'bg-green-500/10 text-green-500' 
+                  : 'bg-red-500/10 text-red-500'
               }`}>
-                {stat.change}
+                {todayNet >= 0 ? 'Surplus' : 'Deficit'}
               </span>
             </div>
-            <p className="text-muted text-xs mb-1">{stat.label}</p>
-            <p className="text-xl md:text-2xl font-bold text-primary">
-              {loading ? '...' : stat.value}
+            <p className="text-muted text-xs mb-1 font-medium">Today's Net Activity</p>
+            <p className={`text-xl md:text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              {loading ? '...' : formatAmount(Math.abs(todayNet))}
             </p>
-          </motion.div>
-        ))}
+            <div className="flex items-center justify-between text-xs mt-2 pt-2 border-t border-app">
+              <span className="text-green-500 font-medium">+{formatAmount(stats?.today_income || 0)}</span>
+              <span className="text-red-500 font-medium">-{formatAmount(stats?.today_expenses || 0)}</span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* 2. TOTAL INCOME */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          whileHover={{ y: -4 }}
+          className={`rounded-xl p-5 cursor-pointer border transition-colors ${
+            isDark ? 'bg-[#13131a] border-white/5' : 'bg-white border-slate-200 shadow-sm'
+          }`}
+        >
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-10 h-10 rounded-lg bg-linear-to-br from-green-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-green-500/20">
+              <TrendingUp size={20} className="text-white" />
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-green-500/10 text-green-500">
+              All Time
+            </span>
+          </div>
+          <p className="text-muted text-xs mb-1 font-medium">Total Income</p>
+          <p className={`text-xl md:text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            {loading ? '...' : formatAmount(stats?.total_income || 0)}
+          </p>
+        </motion.div>
+
+        {/* 3. TOTAL EXPENSES */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+          whileHover={{ y: -4 }}
+          className={`rounded-xl p-5 cursor-pointer border transition-colors ${
+            isDark ? 'bg-[#13131a] border-white/5' : 'bg-white border-slate-200 shadow-sm'
+          }`}
+        >
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-10 h-10 rounded-lg bg-linear-to-br from-red-500 to-orange-400 flex items-center justify-center shadow-lg shadow-red-500/20">
+              <TrendingDown size={20} className="text-white" />
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-red-500/10 text-red-500">
+              All Time
+            </span>
+          </div>
+          <p className="text-muted text-xs mb-1 font-medium">Total Expenses</p>
+          <p className={`text-xl md:text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            {loading ? '...' : formatAmount(stats?.total_expenses || 0)}
+          </p>
+        </motion.div>
+
       </div>
 
       {/* RECENT TRANSACTIONS */}
