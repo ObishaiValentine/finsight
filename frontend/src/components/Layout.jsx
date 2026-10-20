@@ -47,7 +47,7 @@ function formatDateShort(dateString) {
   }
 }
 
-export default function Layout({ children }) {
+export default function Layout({ children, onGoHome }) {
   // Initialize based on current window size (no flash)
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth < 768 : false
@@ -250,9 +250,12 @@ export default function Layout({ children }) {
   // Sidebar content (shared)
   const sidebarContent = (
     <>
+      {/* Logo — clickable to go home */}
       <div className="p-4 md:p-6 border-b border-app shrink-0">
-        <h1 className="text-2xl font-bold gradient-text">FinSight</h1>
-        <p className="text-xs text-muted mt-1">Smart Finance Tracking</p>
+        <button onClick={onGoHome} className="text-left group block w-full">
+          <h1 className="text-2xl font-bold gradient-text group-hover:opacity-80 transition-opacity">FinSight</h1>
+          <p className="text-xs text-muted mt-1 group-hover:text-gray-400 transition-colors">Smart Finance Tracking</p>
+        </button>
       </div>
 
       <nav className="flex-1 overflow-y-auto p-3 md:p-4 space-y-1">

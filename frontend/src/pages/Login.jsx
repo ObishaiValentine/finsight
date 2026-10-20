@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Mail, Lock, ArrowRight, Shield, TrendingUp, Zap, AlertCircle, Loader2
+  Mail, Lock, ArrowRight, Shield, TrendingUp, Zap, AlertCircle, Loader2,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import AuthInput from '../components/AuthInput';
@@ -34,7 +34,7 @@ const featureCard = {
 // Mobile form override
 const mobileFormOverride = "[&_label]:text-gray-400 lg:[&_label]:text-(--text-secondary) [&_input]:bg-white/5 [&_input]:border-white/10 [&_input]:text-white [&_input]:placeholder:text-gray-500 lg:[&_input]:bg-(--bg-card) lg:[&_input]:border-(--border) lg:[&_input]:text-(--text-primary) lg:[&_input]:placeholder:text-(--text-muted)";
 
-export default function Login({ onSwitchToSignup }) {
+export default function Login({ onSwitchToSignup, onBackToLanding }) {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -131,15 +131,17 @@ export default function Login({ onSwitchToSignup }) {
           </div>
 
           <div className="relative z-10 flex flex-col justify-between p-12 w-full">
-            <motion.div
+              <motion.div
               initial={{ opacity: 0, y: -30, filter: 'blur(10px)' }}
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
               transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
             >
-              <h1 className="text-3xl font-bold gradient-text">FinSight</h1>
-              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5, duration: 0.6 }} className="text-xs text-gray-400 mt-1">
-                Smart Finance Tracking
-              </motion.p>
+              <button onClick={onBackToLanding} className="text-left group">
+                <h1 className="text-3xl font-bold gradient-text group-hover:opacity-80 transition-opacity">FinSight</h1>
+                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5, duration: 0.6 }} className="text-xs text-gray-400 mt-1">
+                  Smart Finance Tracking
+                </motion.p>
+              </button>
             </motion.div>
 
             <div className="space-y-10">
@@ -199,9 +201,11 @@ export default function Login({ onSwitchToSignup }) {
             transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
             className="w-full max-w-md"
           >
-            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="lg:hidden mb-10">
-              <h1 className="text-3xl font-bold gradient-text">FinSight</h1>
-              <p className="text-xs text-gray-500 mt-1">Smart Finance Tracking</p>
+            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="lg:hidden mb-10 mt-4">
+              <button onClick={onBackToLanding} className="text-left group">
+                <h1 className="text-3xl font-bold gradient-text group-hover:opacity-80 transition-opacity">FinSight</h1>
+                <p className="text-xs text-gray-500 mt-1">Smart Finance Tracking</p>
+              </button>
             </motion.div>
 
             <motion.div

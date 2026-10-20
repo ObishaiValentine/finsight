@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -21,12 +21,71 @@ const pageVariants = {
 
 const pageTransition = { duration: 0.15, ease: 'easeOut' };
 
+const SESSION_TIMEOUT = 15 * 60 * 1000; // 15 minutes in milliseconds
+const LAST_ACTIVE_KEY = 'finsight-last-active';
+
 function App() {
   const { activePage } = useNavigation();
   const { isAuthenticated, isLoading } = useAuth();
+  
   const [authView, setAuthView] = useState('login');
   const [showLanding, setShowLanding] = useState(true);
 
+  // Logic to determine if we should show the app or the landing page
+  useEffect(() => {
+    // We wrap the state updates in a timeout to satisfy React 19 strict mode
+    const checkSession = () => {
+      if (isAuthenticated) {
+        const lastActive = localStorage.getItem(LAST_ACTIVE_KEY);
+        const now = Date.now();
+
+        // If no last active time, or if it's been more than 15 mins, show landing
+        if (!lastActive || (now - parseInt(lastActive, 10)) > SESSION_TIMEOUT) {
+          setShowLanding(true);
+        } else {
+          // User is active recently, take them straight to the app
+          setShowLanding(false);
+        }
+        
+        // Update the last active time
+        localStorage.setItem(LAST_ACTIVE_KEY, now.toString());
+      } else {
+        // Not authenticated, always show landing
+        setShowLanding(true);
+      }
+    };
+
+    const timeoutId = setTimeout(checkSession, 0);
+    return () => clearTimeout(timeoutId);
+  }, [isAuthenticated]);
+
+  // Track activity to reset the 15-minute timer while using the app
+  useEffect(() => {
+    if (!isAuthenticated || showLanding) return;
+
+    const updateActivity = () => {
+      localStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
+    };
+
+    // Update activity on interactions and tab visibility
+    window.addEventListener('click', updateActivity);
+    window.addEventListener('keydown', updateActivity);
+    
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        updateActivity();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('click', updateActivity);
+      window.removeEventListener('keydown', updateActivity);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isAuthenticated, showLanding]);
+
+  // Initial app loading
   if (isLoading) {
     return (
       <div className="min-h-dvh bg-app flex items-center justify-center">
@@ -50,7 +109,7 @@ function App() {
     );
   }
 
-  // Not authenticated — show landing, then auth pages
+  // 1. Not authenticated flow (Landing -> Auth)
   if (!isAuthenticated) {
     if (showLanding) {
       return (
@@ -81,16 +140,21 @@ function App() {
     );
   }
 
-  // Authenticated — show landing if user chose to view it, else app
+  // 2. Authenticated flow (Landing or App)
   if (showLanding) {
     return (
       <Landing
         onNavigateToAuth={() => {}}
-        onGoToApp={() => setShowLanding(false)}
+        onGoToApp={() => {
+          // Update last active time when they click "Dashboard"
+          localStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
+          setShowLanding(false);
+        }}
       />
     );
   }
 
+  // 3. Render the actual App
   const renderPage = () => {
     switch (activePage) {
       case 'transactions': return <Transactions />;
@@ -104,8 +168,8 @@ function App() {
     }
   };
 
-  return (
-    <Layout>
+   return (
+    <Layout onGoHome={() => setShowLanding(true)}>
       <AnimatePresence mode="wait">
         <motion.div
           key={activePage}
