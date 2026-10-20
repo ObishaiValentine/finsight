@@ -539,6 +539,10 @@ text
 |-----|--------|-------|
 | (None currently tracked) | — | Add here as we discover them |
 
+### Pricing Strategy (Phase 2 Blocker)
+- **Current State:** The pricing section on the landing page is a UI placeholder.
+- **Action Required:** Before launching paid tiers, we must audit the actual feature list. Do NOT promise features that are not built (e.g., invoicing, team accounts, API access). Revise the Starter, Premium, and Business tiers to reflect only what is currently shipped or guaranteed to ship in the immediate update.
+
 ---
 
 ## 13. DEPLOYMENT CONFIGURATION
@@ -1098,4 +1102,30 @@ CODE CONVENTIONS & PATTERNS
 - Final CTA
 - Footer
 
+---
+
+## 26. SESSION LOG UPDATE
+
+### Session 006 — Landing Page Completion 🟢
+- **Landing Page Complete:** Hero, Mobile Showcase, Features, How It Works, Pricing, FAQ, Final CTA, and Footer are all built and responsive.
+- **Pricing Section:** Built a 3-tier pricing table (Starter, Premium, Business) with a monthly/yearly toggle. *Note: Pricing tiers are placeholders and need auditing before real monetization.*
+- **FAQ Section:** Built an animated accordion for frequently asked questions.
+- **Footer:** Created a responsive footer with links and custom SVG icons for social media (replaced removed Lucide brand icons).
+- **Fixes:** Resolved `window.location` ESLint warning in Pricing. Resolved blank-screen crash caused by Lucide removing brand icons by creating custom SVG components.
+
+---
+
+## 27. NEXT SESSION INSTRUCTIONS
+
+### The Immediate Next Tasks (Phase 1)
+Now that the Landing Page is done, we need to focus on the actual application routing and user flow.
+
+1. **Landing Page Session Logic:** Update `App.jsx` to implement the 15-minute session logic. If a user is logged in but hasn't been active for >15 mins, show the landing page first. If they just logged in or refreshed recently, take them straight to the Dashboard.
+2. **Auth Back to Home:** Add a "Back to Home" button on the Login and Signup pages so users can return to the landing page if they change their mind.
+3. **Password Reset Flow:** Build the "Forgot Password" page and wire up the Supabase password reset functionality. (Critical for launch).
+4. **Onboarding Tour:** Build the step-by-step tutorial for first-time users.
+
+### Notes for Future (Phase 2+)
+- **Footer:** Add real social media links (X, GitHub, LinkedIn) and real legal pages (Privacy Policy, Terms of Service).
+- **Pricing:** Audit the actual built features and revise the pricing tiers before launching paid plans.
 ---
