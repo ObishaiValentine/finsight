@@ -7,7 +7,7 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigation } from '../hooks/useNavigation';
-import { useSync } from '../context/SyncContext';
+import { useSync } from '../hooks/useSync';
 import { transactionService } from '../services/transactionService';
 import AuroraBackground from '../components/AuroraBackground';
 import ConnectEmailButton from '../components/ConnectEmailButton';
