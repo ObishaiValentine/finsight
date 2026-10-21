@@ -1161,3 +1161,36 @@ Now that the Landing Page is done, we need to focus on the actual application ro
 - Basic rate limiting on backend
 - Set up CI/CD (GitHub Actions)
 ---
+
+---
+
+## 30. SESSION LOG UPDATE
+
+### Session 008 — Dashboard Upgrades & Data Integrity 🟢
+- **Dashboard UX Overhaul:** Replaced the generic "Total Transactions" card with a highly actionable **"Today Cash Flow"** card. It dynamically calculates money in/out for the current day (WAT timezone) and displays a `+` or `-` sign with color coding (Green for positive, Red for negative).
+- **Empty State Fix:** The "Today Cash Flow" card now hides the Positive/Negative badge if `today_income` and `today_expenses` are both 0.
+- **Timezone Fix:** Updated backend `get_stats()` to calculate "Today" using West Africa Time (UTC+1) instead of UTC, ensuring transactions sync to the correct calendar day for Nigerian users.
+- **Duplicate Data Fix (Self-Healing):** 
+  - Added a `deduplicate_transactions()` function to the backend.
+  - Hooked it into the `gmail_sync_service` so that every time a sync runs, it cleans up any exact duplicates (based on `raw_text`) before finishing.
+  - Updated `create_transaction` to use `upsert` (on conflict ignore) for Gmail IDs.
+  - Added a SQL `UNIQUE(user_id, raw_text)` constraint to the Supabase `transactions` table.
+- **Landing Page Polish:** Added a "Back to Home" link via the clickable brand logo on Login, Signup, and Sidebar. Fixed Vercel build errors by replacing broken Lucide brand icons with custom inline SVGs.
+
+---
+
+## 31. NEXT SESSION INSTRUCTIONS
+
+### The Immediate Next Tasks (Phase 1)
+Now that the Dashboard is solid and duplicates are handled, we need to focus on account recovery and user onboarding.
+
+1. **Password Reset Flow (Critical):** 
+   - Create the UI for "Forgot Password" on the Login page.
+   - Wire up Supabase `resetPasswordForEmail`.
+   - Create the "Update Password" screen that users land on after clicking the email link.
+2. **Onboarding Tour:** Build the step-by-step tutorial for first-time users (can use `react-joyride` or a custom Framer Motion overlay).
+3. **Email Notifications:** Backend cron job or Supabase edge function to send transaction alerts via email.
+
+### Notes for Future (Phase 2+)
+- **Pricing Tier Audit:** Do not launch paid plans until we verify exactly which features are built vs. promised.
+- **Footer Links:** Replace `#` placeholders with real URLs (X, GitHub, LinkedIn, Privacy Policy, Terms of Service).
