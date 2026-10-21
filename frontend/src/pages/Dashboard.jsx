@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Wallet, TrendingUp, TrendingDown, Plus,
-  ArrowUpRight, ArrowDownLeft, Loader2, Activity
+  ArrowUpRight, ArrowDownLeft, Loader2, Clock
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
@@ -199,7 +199,7 @@ export default function Dashboard({ onReady }) {
           <div className="relative">
             <div className="flex items-start justify-between mb-4">
               <div className="w-10 h-10 rounded-lg bg-linear-to-br from-purple-500 to-pink-400 flex items-center justify-center shadow-lg shadow-purple-500/20">
-                <Activity size={20} className="text-white" />
+                <Clock size={20} className="text-white" />
               </div>
               <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${
                 todayNet >= 0 
