@@ -7,7 +7,7 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigation } from '../hooks/useNavigation';
-import { useSync } from '../hooks/useSync';
+import { useSync } from '../hooks/useSync'; // FIXED IMPORT PATH
 import { transactionService } from '../services/transactionService';
 import AuroraBackground from '../components/AuroraBackground';
 import ConnectEmailButton from '../components/ConnectEmailButton';
@@ -77,7 +77,6 @@ export default function Dashboard({ onReady }) {
     }
   }, [onReady]);
 
-  // Initial fetch — wrapped in async to satisfy React 19
   useEffect(() => {
     const init = async () => {
       await fetchData(true);
@@ -86,7 +85,6 @@ export default function Dashboard({ onReady }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Silent refresh when a sync completes
   useEffect(() => {
     const unsubscribe = subscribe(() => {
       fetchData(false);
@@ -94,7 +92,10 @@ export default function Dashboard({ onReady }) {
     return unsubscribe;
   }, [subscribe, fetchData]);
 
-  const todayNet = (stats?.today_income || 0) - (stats?.today_expenses || 0);
+  const todayIncome = stats?.today_income || 0;
+  const todayExpenses = stats?.today_expenses || 0;
+  const todayNet = todayIncome - todayExpenses;
+  const hasTodayActivity = todayIncome > 0 || todayExpenses > 0;
 
   return (
     <div className="space-y-6">
@@ -111,7 +112,6 @@ export default function Dashboard({ onReady }) {
         </p>
       </motion.div>
 
-      {/* QUICK ACTIONS */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -133,7 +133,6 @@ export default function Dashboard({ onReady }) {
         </div>
       )}
 
-      {/* CASH FLOW CARD */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -182,10 +181,8 @@ export default function Dashboard({ onReady }) {
         </div>
       </motion.div>
 
-      {/* NEW STAT CARDS GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         
-        {/* 1. TODAY'S ACTIVITY */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -198,7 +195,7 @@ export default function Dashboard({ onReady }) {
           <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-2xl -translate-y-10 translate-x-10" />
           <div className="relative">
             <div className="flex items-start justify-between mb-4">
-                <div className="w-10 h-10 rounded-lg bg-linear-to-br from-purple-500 to-pink-400 flex items-center justify-center shadow-lg shadow-purple-500/20">
+              <div className="w-10 h-10 rounded-lg bg-linear-to-br from-purple-500 to-pink-400 flex items-center justify-center shadow-lg shadow-purple-500/20">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                   <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -206,26 +203,40 @@ export default function Dashboard({ onReady }) {
                   <line x1="3" y1="10" x2="21" y2="10"></line>
                 </svg>
               </div>
-              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${
-                todayNet >= 0 
-                  ? 'bg-green-500/10 text-green-500' 
-                  : 'bg-red-500/10 text-red-500'
-              }`}>
-                {todayNet >= 0 ? 'Positive' : 'Negative'}
-              </span>
+              
+              {/* ONLY SHOW BADGE IF THERE IS ACTIVITY TODAY */}
+              {hasTodayActivity && (
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${
+                  todayNet >= 0 
+                    ? 'bg-green-500/10 text-green-500' 
+                    : 'bg-red-500/10 text-red-500'
+                }`}>
+                  {todayNet >= 0 ? 'Positive' : 'Negative'}
+                </span>
+              )}
             </div>
             <p className="text-muted text-xs mb-1 font-medium">Today Cash Flow</p>
-            <p className={`text-xl md:text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              {loading ? '...' : formatAmount(Math.abs(todayNet))}
+            <p className={`text-xl md:text-2xl font-bold mb-2 ${
+              todayNet > 0 
+                ? 'text-green-500' 
+                : todayNet < 0 
+                  ? 'text-red-500' 
+                  : isDark ? 'text-white' : 'text-slate-900'
+            }`}>
+              {loading ? '...' : (
+                <>
+                  {todayNet > 0 ? '+' : todayNet < 0 ? '-' : ''}
+                  {formatAmount(Math.abs(todayNet))}
+                </>
+              )}
             </p>
             <div className="flex items-center justify-between text-xs mt-2 pt-2 border-t border-app">
-              <span className="text-green-500 font-medium">+{formatAmount(stats?.today_income || 0)}</span>
-              <span className="text-red-500 font-medium">-{formatAmount(stats?.today_expenses || 0)}</span>
+              <span className="text-green-500 font-medium">+{formatAmount(todayIncome)}</span>
+              <span className="text-red-500 font-medium">-{formatAmount(todayExpenses)}</span>
             </div>
           </div>
         </motion.div>
 
-        {/* 2. TOTAL INCOME */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -249,7 +260,6 @@ export default function Dashboard({ onReady }) {
           </p>
         </motion.div>
 
-        {/* 3. TOTAL EXPENSES */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -275,7 +285,6 @@ export default function Dashboard({ onReady }) {
 
       </div>
 
-      {/* RECENT TRANSACTIONS */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

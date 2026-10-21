@@ -1,7 +1,7 @@
 """Transaction service — handle CRUD operations."""
 
 from typing import Dict, List, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from collections import defaultdict
 from fastapi import HTTPException, status
 
@@ -9,6 +9,8 @@ from app.core.supabase_client import supabase
 from app.services.parsers.hybrid_parser import HybridParser
 from app.services.category_service import category_service
 
+# Nigeria is UTC+1
+WAT_TIMEZONE = timezone(timedelta(hours=1))
 
 class TransactionService:
     """Handle transaction storage and retrieval."""
@@ -17,14 +19,23 @@ class TransactionService:
         self.parser = HybridParser()
 
     def create_transaction(self, user_id: str, data: Dict) -> Dict:
-        """Insert a new transaction into database."""
+        """Insert a new transaction, handling duplicates gracefully."""
         try:
             payload = {**data, "user_id": user_id}
 
             if isinstance(payload.get("transaction_date"), datetime):
                 payload["transaction_date"] = payload["transaction_date"].isoformat()
 
-            response = supabase.table("transactions").insert(payload).execute()
+            # If it has a gmail_id, use UPSERT to ignore duplicates
+            if payload.get("raw_text") and payload["raw_text"].startswith("gmail_id:"):
+                response = (
+                    supabase.table("transactions")
+                    .upsert(payload, on_conflict="user_id,raw_text")
+                    .execute()
+                )
+            else:
+                # Normal insert for manual entries
+                response = supabase.table("transactions").insert(payload).execute()
 
             if not response.data:
                 raise HTTPException(
@@ -52,7 +63,6 @@ class TransactionService:
                 detail="Could not extract required fields from alert",
             )
 
-        # Auto-categorize
         category = category_service.categorize(
             text=f"{parsed.get('merchant') or ''} {raw_text}",
             transaction_type=parsed.get("transaction_type"),
@@ -80,7 +90,6 @@ class TransactionService:
         transaction_type: Optional[str] = None,
         bank_name: Optional[str] = None,
     ) -> Dict:
-        """Get paginated transactions for a user."""
         try:
             query = supabase.table("transactions").select("*", count="exact").eq("user_id", user_id)
 
@@ -93,7 +102,6 @@ class TransactionService:
             query = query.order("transaction_date", desc=True).range(offset, offset + page_size - 1)
 
             response = query.execute()
-
             total = response.count or 0
             total_pages = (total + page_size - 1) // page_size
 
@@ -112,7 +120,6 @@ class TransactionService:
             )
 
     def get_transaction(self, user_id: str, transaction_id: str) -> Optional[Dict]:
-        """Get a single transaction by ID."""
         try:
             response = (
                 supabase.table("transactions")
@@ -127,7 +134,6 @@ class TransactionService:
             return None
 
     def delete_transaction(self, user_id: str, transaction_id: str) -> bool:
-        """Delete a transaction."""
         try:
             response = (
                 supabase.table("transactions")
@@ -141,7 +147,7 @@ class TransactionService:
             return False
 
     def get_stats(self, user_id: str) -> Dict:
-        """Get transaction statistics for dashboard, including today's activity."""
+        """Get statistics, with timezone-accurate 'Today' calculations."""
         try:
             response = (
                 supabase.table("transactions")
@@ -156,29 +162,26 @@ class TransactionService:
             today_income = 0
             today_expenses = 0
             
-            # Get today's date in UTC
-            now = datetime.now(timezone.utc)
+            # Get today's date in West Africa Time (Nigeria)
+            now = datetime.now(WAT_TIMEZONE)
             today_date = now.date()
 
             for t in transactions:
                 amount = t["amount"]
                 tx_type = t["transaction_type"]
 
-                # 1. Calculate All-Time Totals
                 if tx_type == "credit":
                     total_income += amount
                 elif tx_type == "debit":
                     total_expenses += amount
 
-                # 2. Calculate Today's Totals
                 date_str = t.get("transaction_date")
                 if date_str:
                     try:
-                        # Parse the transaction date, handling 'Z' timezone
+                        # Convert transaction date to WAT and check if it's today
                         tx_date_str = date_str.replace("Z", "+00:00")
-                        tx_date = datetime.fromisoformat(tx_date_str).date()
+                        tx_date = datetime.fromisoformat(tx_date_str).astimezone(WAT_TIMEZONE).date()
                         
-                        # If the transaction happened today
                         if tx_date == today_date:
                             if tx_type == "credit":
                                 today_income += amount
@@ -192,7 +195,6 @@ class TransactionService:
                 "total_income": round(total_income, 2),
                 "total_expenses": round(total_expenses, 2),
                 "net_balance": round(total_income - total_expenses, 2),
-                # NEW FIELDS:
                 "today_income": round(today_income, 2),
                 "today_expenses": round(today_expenses, 2),
                 "today_net": round(today_income - today_expenses, 2),
@@ -205,7 +207,7 @@ class TransactionService:
             )
 
     def get_analytics(self, user_id: str) -> Dict:
-        """Get aggregated analytics for dashboard charts."""
+        # Keep this exactly the same as before...
         try:
             response = (
                 supabase.table("transactions")
@@ -216,19 +218,13 @@ class TransactionService:
             )
             transactions = response.data or []
 
-            # ===== Monthly trend (last 6 months) =====
             monthly_data = defaultdict(lambda: {"income": 0, "expenses": 0})
-
             for tx in transactions:
                 try:
-                    date_str = tx.get("transaction_date")
-                    if not date_str:
-                        continue
-                    date_str = date_str.replace("Z", "+00:00")
+                    date_str = tx.get("transaction_date").replace("Z", "+00:00")
                     tx_date = datetime.fromisoformat(date_str)
                     month_key = tx_date.strftime("%b")
                     month_order = tx_date.strftime("%Y-%m")
-
                     if tx["transaction_type"] == "credit":
                         monthly_data[month_order]["income"] += tx["amount"]
                     else:
@@ -247,37 +243,22 @@ class TransactionService:
                 for m in sorted_months
             ]
 
-            # ===== Category breakdown =====
             category_totals = defaultdict(float)
             for tx in transactions:
                 cat = tx.get("category") or "Uncategorized"
                 category_totals[cat] += tx["amount"]
 
             category_colors = {
-                "Transfer": "#3b82f6",
-                "Income": "#10b981",
-                "Bills": "#f59e0b",
-                "Shopping": "#ec4899",
-                "Entertainment": "#8b5cf6",
-                "Transport": "#06b6d4",
-                "Food": "#ef4444",
-                "Refund": "#14b8a6",
-                "Other": "#6b7280",
-                "Uncategorized": "#94a3b8",
+                "Transfer": "#3b82f6", "Income": "#10b981", "Bills": "#f59e0b",
+                "Shopping": "#ec4899", "Entertainment": "#8b5cf6", "Transport": "#06b6d4",
+                "Food": "#ef4444", "Refund": "#14b8a6", "Other": "#6b7280", "Uncategorized": "#94a3b8",
             }
 
             category_breakdown = [
-                {
-                    "name": cat,
-                    "value": round(value, 2),
-                    "color": category_colors.get(cat, "#6b7280"),
-                }
-                for cat, value in sorted(
-                    category_totals.items(), key=lambda x: x[1], reverse=True
-                )
+                {"name": cat, "value": round(value, 2), "color": category_colors.get(cat, "#6b7280")}
+                for cat, value in sorted(category_totals.items(), key=lambda x: x[1], reverse=True)
             ][:6]
 
-            # ===== Top merchants =====
             merchant_totals = defaultdict(lambda: {"amount": 0, "count": 0})
             for tx in transactions:
                 if tx["transaction_type"] != "debit":
@@ -286,11 +267,9 @@ class TransactionService:
                 merchant_totals[merchant]["amount"] += tx["amount"]
                 merchant_totals[merchant]["count"] += 1
 
-            top_merchants_raw = sorted(
-                merchant_totals.items(), key=lambda x: x[1]["amount"], reverse=True
-            )[:5]
-
+            top_merchants_raw = sorted(merchant_totals.items(), key=lambda x: x[1]["amount"], reverse=True)[:5]
             max_amount = top_merchants_raw[0][1]["amount"] if top_merchants_raw else 1
+            
             top_merchants = [
                 {
                     "name": name,
@@ -301,11 +280,7 @@ class TransactionService:
                 for name, data in top_merchants_raw
             ]
 
-            return {
-                "monthly_trend": monthly_trend,
-                "category_breakdown": category_breakdown,
-                "top_merchants": top_merchants,
-            }
+            return {"monthly_trend": monthly_trend, "category_breakdown": category_breakdown, "top_merchants": top_merchants}
 
         except Exception as e:
             raise HTTPException(
@@ -313,6 +288,4 @@ class TransactionService:
                 detail=f"Analytics error: {str(e)}",
             )
 
-
-# Singleton
 transaction_service = TransactionService()
