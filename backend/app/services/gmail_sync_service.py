@@ -177,6 +177,15 @@ class GmailSyncService:
                 failed += 1
                 errors.append(f"Save error: {str(e)[:100]}")
 
+                # --- SELF-HEALING: Clean up any duplicates just in case ---
+        from app.services.transaction_service import transaction_service
+        try:
+            cleaned = transaction_service.deduplicate_transactions(user_id)
+            if cleaned > 0:
+                print(f"Cleaned {cleaned} duplicates during sync.")
+        except Exception as e:
+            print(f"Deduplication failed: {str(e)}")
+
         return {
             "total_fetched": len(alerts),
             "synced": synced,
@@ -184,7 +193,6 @@ class GmailSyncService:
             "failed": failed,
             "errors": errors[:10],
         }
-
 
 # Singleton
 gmail_sync_service = GmailSyncService()

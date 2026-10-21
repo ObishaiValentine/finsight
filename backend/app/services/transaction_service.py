@@ -146,6 +146,56 @@ class TransactionService:
         except Exception:
             return False
 
+    def deduplicate_transactions(self, user_id: str) -> int:
+        """
+        Self-healing function: Checks all transactions for a user,
+        identifies exact duplicates based on raw_text, and deletes the extras.
+        Returns the number of deleted duplicates.
+        """
+        try:
+            # Fetch all transactions for the user
+            response = (
+                supabase.table("transactions")
+                .select("id, raw_text, created_at")
+                .eq("user_id", user_id)
+                .order("created_at", desc=False) # Keep the oldest ones
+                .execute()
+            )
+            transactions = response.data or []
+            
+            seen_raw_texts = set()
+            duplicate_ids = []
+
+            for tx in transactions:
+                raw_text = tx.get("raw_text")
+                
+                # If raw_text is missing, skip deduplication for this row
+                if not raw_text:
+                    continue
+                    
+                if raw_text in seen_raw_texts:
+                    duplicate_ids.append(tx["id"])
+                else:
+                    seen_raw_texts.add(raw_text)
+
+            # Delete the duplicates
+            if duplicate_ids:
+                # Supabase allows deleting multiple rows by passing an "in" filter
+                # We delete them in chunks just in case there are hundreds
+                chunk_size = 50
+                for i in range(0, len(duplicate_ids), chunk_size):
+                    chunk = duplicate_ids[i:i + chunk_size]
+                    supabase.table("transactions").delete().in_("id", chunk).execute()
+                
+                print(f"Self-healing: Deleted {len(duplicate_ids)} duplicate transactions.")
+                return len(duplicate_ids)
+            
+            return 0
+
+        except Exception as e:
+            print(f"Error during deduplication: {str(e)}")
+            return 0
+
     def get_stats(self, user_id: str) -> Dict:
         """Get statistics, with timezone-accurate 'Today' calculations."""
         try:
@@ -207,7 +257,6 @@ class TransactionService:
             )
 
     def get_analytics(self, user_id: str) -> Dict:
-        # Keep this exactly the same as before...
         try:
             response = (
                 supabase.table("transactions")
