@@ -211,10 +211,10 @@ export default function Dashboard({ onReady }) {
                   ? 'bg-green-500/10 text-green-500' 
                   : 'bg-red-500/10 text-red-500'
               }`}>
-                {todayNet >= 0 ? 'Credit' : 'Debit'}
+                {todayNet >= 0 ? 'Positive' : 'Negative'}
               </span>
             </div>
-            <p className="text-muted text-xs mb-1 font-medium">Today Transactions</p>
+            <p className="text-muted text-xs mb-1 font-medium">Today Cash Flow</p>
             <p className={`text-xl md:text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
               {loading ? '...' : formatAmount(Math.abs(todayNet))}
             </p>
