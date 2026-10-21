@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Mail, Lock, ArrowRight, Shield, TrendingUp, Zap, AlertCircle, Loader2,
+  Mail, Lock, ArrowRight, Shield, TrendingUp, Zap, AlertCircle, Loader2, X, CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import AuthInput from '../components/AuthInput';
+import { supabase } from '../lib/supabase';
 
 const features = [
   { icon: Zap, title: 'Automatic parsing', desc: 'Hybrid Regex-NER engine reads your bank alerts' },
@@ -40,6 +41,11 @@ export default function Login({ onSwitchToSignup, onBackToLanding }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
+  const [resetError, setResetError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -242,7 +248,7 @@ export default function Login({ onSwitchToSignup, onBackToLanding }) {
                   <input type="checkbox" className="w-4 h-4 rounded border-app bg-elevated accent-blue-500 cursor-pointer" />
                   <span className="text-xs text-gray-400 lg:text-(--text-secondary)">Remember me</span>
                 </label>
-                <button type="button" className="text-xs text-blue-500 hover:text-blue-400 transition-colors">Forgot password?</button>
+                <button type="button" onClick={() => setShowResetModal(true)} className="text-xs text-blue-500 hover:text-blue-400 transition-colors">Forgot password?</button>
               </div>
 
               <motion.button
@@ -297,6 +303,81 @@ export default function Login({ onSwitchToSignup, onBackToLanding }) {
           </motion.div>
         </div>
       </div>
+            {/* FORGOT PASSWORD MODAL */}
+      <AnimatePresence>
+        {showResetModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowResetModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-card border border-app rounded-2xl p-6 w-full max-w-sm shadow-2xl relative"
+            >
+              <button
+                onClick={() => setShowResetModal(false)}
+                className="absolute top-4 right-4 text-muted hover:text-primary transition-colors"
+              >
+                <X size={18} />
+              </button>
+
+              <h2 className="text-xl font-bold text-primary mb-2">Reset Password</h2>
+              <p className="text-sm text-secondary mb-6">
+                Enter your email address and we'll send you a link to reset your password.
+              </p>
+
+              {resetSuccess ? (
+                <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-center">
+                  <CheckCircle2 size={24} className="text-green-500 mx-auto mb-2" />
+                  <p className="text-sm text-green-500 font-medium">Check your email for the reset link!</p>
+                </div>
+              ) : (
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  setResetLoading(true);
+                  setResetError('');
+                  const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+                    redirectTo: `${window.location.origin}/reset-password`,
+                  });
+                  if (error) setResetError(error.message);
+                  else setResetSuccess(true);
+                  setResetLoading(false);
+                }}>
+                  {resetError && (
+                    <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                      <p className="text-xs text-red-500">{resetError}</p>
+                    </div>
+                  )}
+                  <div className="space-y-4">
+                    <AuthInput
+                      label="Email Address"
+                      type="email"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      icon={Mail}
+                      required
+                    />
+                    <button
+                      type="submit"
+                      disabled={resetLoading}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-linear-to-r from-blue-600 to-cyan-500 text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
+                    >
+                      {resetLoading ? <Loader2 size={16} className="animate-spin" /> : 'Send Reset Link'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

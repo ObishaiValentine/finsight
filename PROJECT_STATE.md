@@ -1194,3 +1194,15 @@ Now that the Dashboard is solid and duplicates are handled, we need to focus on 
 ### Notes for Future (Phase 2+)
 - **Pricing Tier Audit:** Do not launch paid plans until we verify exactly which features are built vs. promised.
 - **Footer Links:** Replace `#` placeholders with real URLs (X, GitHub, LinkedIn, Privacy Policy, Terms of Service).
+
+---
+
+## 32. SESSION LOG UPDATE
+
+### Session 009 — Network Error Fix & Deduplication 🟢
+- **Supabase Network Fix:** Resolved the `[Received pseudo-header in trailer]` error that was breaking the Gmail sync. Fixed by forcing the Supabase Python client to use HTTP/1.1 via `httpx.Client(http2=False)` instead of HTTP/2.
+- **Dependencies Updated:** Ensured `requirements.txt` uses `supabase>=2.15` and `httpx>=0.26` to support the custom HTTP client configuration.
+- **Self-Healing Deduplication:** Confirmed the backend now automatically cleans up duplicate transactions during every sync, and the `UNIQUE(user_id, raw_text)` constraint is active in Supabase.
+- **Dashboard UI:** Finalized the "Today's Cash Flow" card with correct `+`/`-` mathematical signs, color coding, and empty states (no badge if ₦0 activity).
+
+---

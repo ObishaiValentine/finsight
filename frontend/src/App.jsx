@@ -12,6 +12,7 @@ import Signup from './pages/Signup';
 import Landing from './pages/Landing';
 import { useNavigation } from './hooks/useNavigation';
 import { useAuth } from './hooks/useAuth';
+import ResetPassword from './pages/ResetPassword';
 
 const pageVariants = {
   initial: { opacity: 0 },
@@ -84,6 +85,11 @@ function App() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [isAuthenticated, showLanding]);
+
+    // Intercept the password reset URL before the normal app logic
+  if (window.location.pathname === '/reset-password') {
+    return <ResetPassword />;
+  }
 
   // Initial app loading
   if (isLoading) {
