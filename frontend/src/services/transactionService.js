@@ -63,4 +63,12 @@ export const transactionService = {
     const response = await api.patch(`/transactions/${id}`, { category });
     return response.data;
   },
+
+    /**
+   * Re-run the parser on all existing transactions for the user.
+   */
+  async reparseTransactions() {
+    const response = await api.post('/transactions/reparse');
+    return response.data;
+  },
 };

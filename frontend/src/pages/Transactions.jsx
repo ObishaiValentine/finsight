@@ -22,6 +22,7 @@ import {
   Wallet,
   Hash,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 import { useSearch } from '../hooks/useSearch';
 import { useSync } from '../hooks/useSync';
@@ -96,6 +97,7 @@ export default function Transactions({ onReady }) {
   const [deleteTx, setDeleteTx] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [reparsing, setReparsing] = useState(false);
 
   // ============ DATA FETCHING ============
   const fetchTransactions = useCallback(async (showLoader = true) => {
@@ -269,6 +271,21 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
   const hasActiveFilters =
     selectedBank !== 'All Banks' || selectedType !== 'All Types';
 
+    const handleReparse = async () => {
+    setReparsing(true);
+    try {
+      const result = await transactionService.reparseTransactions();
+      // Show a simple alert, or you can build a custom toast notification later
+      alert(result.message || 'Transactions re-parsed successfully!');
+      await fetchTransactions(false);
+      broadcastRefresh();
+    } catch (err) {
+      alert(err.message || 'Failed to reparse transactions');
+    } finally {
+      setReparsing(false);
+    }
+  };
+    
   return (
     <div className="space-y-6">
 
@@ -287,10 +304,22 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
             {loading ? 'Loading...' : `${total} transaction${total !== 1 ? 's' : ''} found`}
           </p>
         </div>
-        <button className="flex items-center justify-center gap-2 px-4 py-2 bg-linear-to-r from-blue-600 to-cyan-500 rounded-lg text-white text-sm font-medium hover:opacity-90 transition-opacity w-full sm:w-auto">
-          <Download size={16} />
-          Export CSV
-        </button>
+                <div className="flex gap-2 w-full sm:w-auto">
+        <button
+            onClick={handleReparse}
+            disabled={reparsing}
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-card border border-app rounded-lg text-secondary text-sm font-medium hover:border-blue-500 transition-colors disabled:opacity-60"
+            title="Fix old transactions with the latest parser"
+          >
+            {reparsing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+            {reparsing ? 'Reparsing...' : 'Reparse Data'}
+          </button>
+          
+          <button className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-linear-to-r from-blue-600 to-cyan-500 rounded-lg text-white text-sm font-medium hover:opacity-90 transition-opacity">
+            <Download size={16} />
+            Export CSV
+          </button>
+        </div>
       </motion.div>
 
       {/* SEARCH & FILTER BAR */}
