@@ -285,7 +285,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
       setReparsing(false);
     }
   };
-    
+
   return (
     <div className="space-y-6">
 
@@ -954,28 +954,33 @@ function formatAmount(amount) {
 
 function formatFullDate(dateString) {
   if (!dateString) return '—';
-  const date = new Date(dateString);
+  
+  // FIX: Strip out 'am'/'pm' from the raw string because our backend sometimes saves it inside the date object
+  let cleanStr = String(dateString).replace(/\s*(am|pm|AM|PM)/gi, '').trim();
+
+  const date = new Date(cleanStr);
+  
+  // If it's an invalid date after cleaning (like a weird gmail_id string), return unknown
+  if (isNaN(date.getTime())) return 'Unknown Date'; 
+
   const now = new Date();
   
-  // Today
+  const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
+  const formattedTime = date.toLocaleTimeString('en-NG', timeOptions).toLowerCase();
+
   if (date.toDateString() === now.toDateString()) {
-    return `Today at ${date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()}`;
+    return `Today at ${formattedTime}`;
   }
   
-  // Yesterday
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   if (date.toDateString() === yesterday.toDateString()) {
-    return `Yesterday at ${date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()}`;
+    return `Yesterday at ${formattedTime}`;
   }
 
-  // Older
   return date.toLocaleDateString('en-NG', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  }) + ` ${date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit', hour12: true }).slice(-2).toLowerCase()}`;
+  }) + ` at ${formattedTime}`;
 }

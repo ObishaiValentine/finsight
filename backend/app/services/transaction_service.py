@@ -215,7 +215,9 @@ class TransactionService:
 
             for tx in transactions:
                 raw_text = tx.get("raw_text")
-                if not raw_text:
+                
+                # Skip if no raw text OR if it's just a gmail ID (we can't parse it without the body)
+                if not raw_text or raw_text.startswith("gmail_id:"):
                     continue
 
                 # Parse the text using the NEW parser logic

@@ -13,7 +13,6 @@ class NERParser:
 
     def __init__(self):
         self.nlp = spacy.load("en_core_web_sm")
-
         self.noise_words = [
             "transfer", "payment", "refund", "purchase", "debit",
             "credit", "alert", "transaction", "narration", "description",
@@ -22,23 +21,16 @@ class NERParser:
         ]
 
     def _clean_extracted_text(self, text: str) -> str:
-        """Clean and normalize extracted narrative text."""
         text = re.sub(r"\s+", " ", text)
-        text = text.strip(" .,;:-")
-        return text
+        return text.strip(" .,;:-")
 
     def _clean_merchant_noise(self, text: str) -> str:
         """Clean merchant name from noise."""
-        if not text:
-            return ""
+        if not text or text.startswith("gmail_id:"):
+            return "Unknown Merchant"
             
-        # 1. Remove leading transfer prefixes
-        text = re.sub(
-            r"^(?:transfer\s+(?:from|to)|payment\s+(?:from|to)|from|to)\s+",
-            "",
-            text,
-            flags=re.IGNORECASE,
-        )
+        # 1. Remove transfer prefixes
+        text = re.sub(r"^(?:transfer\s+(?:from|to)|payment\s+(?:from|to)|from|to)\s+", "", text, flags=re.IGNORECASE)
 
         # 2. POS prefix
         text = re.sub(r"^pos\s+pur(?:chase)?\s*@?\s*", "", text, flags=re.IGNORECASE)
@@ -49,7 +41,7 @@ class NERParser:
         text = re.sub(r"^nip//\d+\s*", "", text, flags=re.IGNORECASE)
         text = re.sub(r"^nip//\s*", "", text, flags=re.IGNORECASE)
 
-        # 4. UBA TNF pattern (e.g., "TNF-Valentine Obishai/..." or "TNF-/ONYE/...")
+        # 4. UBA TNF pattern (Fixes "TNF-Valentine Obishai/...")
         tnf_match = re.search(r"TNF-(.+?)(?:/|$)", text, re.IGNORECASE)
         if tnf_match:
             text = tnf_match.group(1).strip()
@@ -60,49 +52,28 @@ class NERParser:
         if mob_match:
             text = mob_match.group(1).strip()
 
-        # 6. Remove trailing asterisks and weird numbers (e.g., "* - 0.75 *")
-        text = re.sub(r"\*.*$", "", text)
-        text = re.sub(r"-\s*\d+(\.\d+)?\s*\*?$", "", text)
-        text = text.replace("*", "")
-
-        # 7. VAT Charge specific cleanup (e.g., "VAT charge for Transfer from Valentine")
-        vat_match = re.search(r"VAT charge for Transfer from\s+([A-Za-z\s]+)", text, re.IGNORECASE)
-        if vat_match:
-            return f"VAT - {vat_match.group(1).strip()}"
-
+        # 6. BRUTE FORCE: Strip everything after an asterisk (Fixes Carbon "* - 0.75 *")
+        text = text.split('*')[0]
+        
+        # 7. BRUTE FORCE: Strip trailing dates (Fixes "11-Oct-2026 Transfer from...")
+        text = re.sub(r"\d{1,2}-[A-Za-z]{3}-\d{4}.*", "", text, flags=re.IGNORECASE)
+        
         # 8. Remove long IDs
         text = re.sub(r"\b[A-Z]{2,}\d{10,}\b", "", text)
         text = re.sub(r"\b[A-Z0-9]{7,10}\b\s*[-]?\s*", " ", text)
         text = re.sub(r"\b\d{6,}\b\s*/?\s*", " ", text)
 
-        # 9. Stop-word truncation
-        stop_words = [
-            "transaction remarks", "date and time", "available balance",
-            "cleared balance", "value date", "transaction location",
-            "transaction reference",
-        ]
-        for stop in stop_words:
-            if stop in text.lower():
-                text = text[:text.lower().index(stop)]
+        # 9. Collapse whitespace
+        text = re.sub(r"\s+", " ", text).strip(" .,;:-*")
 
-        # 10. Trailing short uppercase
-        text = re.sub(r"\s+[A-Z]{1,2}$", "", text)
-
-        # 11. Collapse whitespace
-        text = re.sub(r"\s+", " ", text).strip(" .,;:-")
-
-        # 12. Invalid phrases
-        invalid_phrases = [
-            "are below", "below", "summary", "details", "alert",
-            "notification", "s name", "name", "s name:",
-        ]
-        if text.lower() in invalid_phrases:
-            return ""
+        # 10. Invalid phrases
+        invalid_phrases = ["are below", "below", "summary", "details", "alert", "notification", "s name", "name", "s name:", "vat charge", "transaction"]
+        if text.lower() in invalid_phrases or len(text) < 3 or not re.search(r"[a-zA-Z]", text):
+            return "Unknown Merchant"
 
         return text
 
     def _extract_field_after_keyword(self, text: str, keyword_pattern: str) -> Optional[str]:
-        """Extract value after a field keyword with stop conditions."""
         stop_keywords = (
             r"(?:date|time|account\s+number|account|acct|a/c|"
             r"amount|amt|balance|bal|cleared\s+balance|uncleared\s+balance|"
@@ -115,13 +86,7 @@ class NERParser:
             r"open\s+app|the\s+carbon\s+team)"
         )
 
-        pattern = re.compile(
-            rf"{keyword_pattern}\s*:?\s*"
-            rf"([\s\S]+?)"
-            rf"(?:\s+(?:{stop_keywords})\s*:|\Z)",
-            re.IGNORECASE,
-        )
-
+        pattern = re.compile(rf"{keyword_pattern}\s*:?\s*([\s\S]+?)(?:\s+(?:{stop_keywords})\s*:|\Z)", re.IGNORECASE)
         match = pattern.search(text)
         if match:
             raw = match.group(1).strip()
@@ -134,106 +99,60 @@ class NERParser:
                         break
             if first_line:
                 return self._clean_merchant_noise(first_line)
-
         return None
 
     def _extract_carbon_merchant(self, text: str) -> Optional[str]:
-        """Special handler for Carbon emails — extract from NIP or narration."""
-        # Carbon NIP pattern: "NIP//000004261008084454772326837423 - FROM OBISHAI VALENTINE ONYEMAECHI"
-        nip_match = re.search(
-            r"NIP//\d+\s*-\s*FROM\s+([A-Z][A-Z\s]+?)(?://|$)",
-            text,
-            re.IGNORECASE,
-        )
+        nip_match = re.search(r"NIP//\d+\s*-\s*FROM\s+([A-Z][A-Z\s]+?)(?://|$)", text, re.IGNORECASE)
         if nip_match:
             name = nip_match.group(1).strip()
             if len(name) > 3:
                 return self._clean_merchant_noise(name)
-        
         return None
 
     def _extract_narrative_line(self, text: str) -> Optional[str]:
-        """
-        Extract merchant/narrative.
-        Priority (by reliability):
-        1. Narration (most common in NG bank alerts)
-        2. Description
-        3. Sender / Beneficiary
-        4. Transfer from/to
-        """
-        # Priority 1: Narration
         narration = self._extract_field_after_keyword(text, r"\bnarration\b")
-        if narration and self._is_valid_entity(narration):
-            return narration
+        if narration and self._is_valid_entity(narration): return narration
 
-        # Priority 2: Description
         description = self._extract_field_after_keyword(text, r"\bdescription\b")
-        if description and self._is_valid_entity(description):
-            return description
+        if description and self._is_valid_entity(description): return description
 
-        # Priority 3: Sender
         sender = self._extract_field_after_keyword(text, r"\bsender(?:'s)?\s*(?:name)?\b")
-        if sender and self._is_valid_entity(sender):
-            return sender
+        if sender and self._is_valid_entity(sender): return sender
 
-        # Priority 4: Beneficiary
         beneficiary = self._extract_field_after_keyword(text, r"\bbeneficiary(?:'s)?\s*(?:name)?\b")
-        if beneficiary and self._is_valid_entity(beneficiary):
-            return beneficiary
+        if beneficiary and self._is_valid_entity(beneficiary): return beneficiary
 
-        # Priority 5: Transfer from/to
         transfer = self._extract_field_after_keyword(text, r"\btransfer\s+(?:to|from)\b")
-        if transfer and self._is_valid_entity(transfer):
-            return transfer
+        if transfer and self._is_valid_entity(transfer): return transfer
 
         return None
 
     def _is_valid_entity(self, entity_text: str) -> bool:
-        """Check if entity text is valid."""
         text_lower = entity_text.lower().strip()
-        if len(text_lower) < 3:
-            return False
-        if text_lower in self.noise_words:
-            return False
-        if not re.search(r"[a-zA-Z]", text_lower):
-            return False
+        if len(text_lower) < 3: return False
+        if text_lower in self.noise_words: return False
+        if not re.search(r"[a-zA-Z]", text_lower): return False
         return True
 
     def extract_merchant(self, text: str) -> Optional[str]:
-        """Extract merchant/beneficiary name."""
-        # Priority 0: Carbon-specific NIP pattern
+        if text.startswith("gmail_id:"): return "Unknown Merchant"
+
         carbon_merchant = self._extract_carbon_merchant(text)
-        if carbon_merchant and self._is_valid_entity(carbon_merchant):
-            return carbon_merchant
+        if carbon_merchant and self._is_valid_entity(carbon_merchant): return carbon_merchant
 
-        # Priority 1: Narrative line patterns
         narrative = self._extract_narrative_line(text)
-        if narrative and self._is_valid_entity(narrative):
-            return narrative
+        if narrative and self._is_valid_entity(narrative): return narrative
 
-        # Priority 2: spaCy NER fallback
         doc = self.nlp(text)
-        entities = []
-        for ent in doc.ents:
-            if ent.label_ in ("PERSON", "ORG"):
-                if self._is_valid_entity(ent.text):
-                    entities.append(ent.text)
-
+        entities = [ent.text for ent in doc.ents if ent.label_ in ("PERSON", "ORG") and self._is_valid_entity(ent.text)]
         if entities:
-            return self._clean_extracted_text(max(entities, key=len))
+            return self._clean_merchant_noise(max(entities, key=len))
 
-        return None
+        return "Unknown Merchant"
     
     def extract_entities(self, text: str) -> List[dict]:
-        """Extract ALL entities (for debugging)."""
         doc = self.nlp(text)
-        return [
-            {"text": ent.text, "label": ent.label_}
-            for ent in doc.ents
-        ]
+        return [{"text": ent.text, "label": ent.label_} for ent in doc.ents]
 
     def parse(self, text: str) -> dict:
-        return {
-            "merchant": self.extract_merchant(text),
-            "entities": self.extract_entities(text),
-        }
+        return {"merchant": self.extract_merchant(text), "entities": self.extract_entities(text)}
