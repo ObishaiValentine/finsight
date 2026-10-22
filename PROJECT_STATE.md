@@ -1206,3 +1206,15 @@ Now that the Dashboard is solid and duplicates are handled, we need to focus on 
 - **Dashboard UI:** Finalized the "Today's Cash Flow" card with correct `+`/`-` mathematical signs, color coding, and empty states (no badge if ₦0 activity).
 
 ---
+---
+
+## 33. SESSION LOG UPDATE
+
+### Session 010 — Password Reset Flow 🟢
+- **Frontend Setup:** Installed `@supabase/supabase-js` and created `frontend/src/lib/supabase.js` to initialize the client.
+- **Forgot Password UI:** Added a clean, animated modal to the Login page that triggers `supabase.auth.resetPasswordForEmail()`.
+- **Update Password Page:** Created `ResetPassword.jsx`, which intercepts the `/reset-password` URL path in `App.jsx`. It allows users to securely update their password using `supabase.auth.updateUser()`.
+- **Environment Config:** Added Supabase URLs and Anon Keys to Vercel environment variables. Configured Redirect URLs in the Supabase Dashboard.
+- **Known Note:** Emails are currently sent via Supabase's default SMTP. Later, we must connect a custom SMTP provider (Resend/SendGrid) to send emails from a `@finsight.app` domain.
+
+---

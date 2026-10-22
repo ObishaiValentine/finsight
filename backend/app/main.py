@@ -36,6 +36,10 @@ def root():
         "docs": "/docs",
     }
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
 # Register API router (with /api prefix)
 app.include_router(api_router)
 
