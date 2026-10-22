@@ -468,7 +468,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                       className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
                         tx.transaction_type === 'credit'
                           ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                          : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'
+                          : 'bg-red-500/10 text-red-600 dark:text-red-400'
                       }`}
                     >
                       {tx.transaction_type === 'credit' ? (
@@ -492,7 +492,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                       className={`text-sm font-semibold shrink-0 md:hidden ${
                         tx.transaction_type === 'credit'
                           ? 'text-green-600 dark:text-green-400'
-                          : 'text-primary'
+                          : 'text-red-600 dark:text-red-400'
                       }`}
                     >
                       {tx.transaction_type === 'credit' ? '+' : '-'}
@@ -511,7 +511,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                       className={`text-xs px-2 py-1 rounded-full font-medium ${
                         tx.transaction_type === 'credit'
                           ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                          : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'
+                          : 'bg-red-500/10 text-red-600 dark:text-red-400'
                       }`}
                     >
                       {tx.transaction_type?.toUpperCase() || '—'}
@@ -531,7 +531,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                       className={`text-sm font-semibold ${
                         tx.transaction_type === 'credit'
                           ? 'text-green-600 dark:text-green-400'
-                          : 'text-primary'
+                          : 'text-red-600 dark:text-red-400'
                       }`}
                     >
                       {tx.transaction_type === 'credit' ? '+' : '-'}
@@ -608,7 +608,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                   className={`absolute -top-20 -right-20 w-56 h-56 rounded-full blur-3xl ${
                     detailTx.transaction_type === 'credit'
                       ? 'bg-linear-to-br from-green-500/20 to-emerald-400/10'
-                      : 'bg-linear-to-br from-slate-500/20 to-slate-400/10'
+                      : 'bg-linear-to-br from-red-500/20 to-orange-400/10'
                   }`}
                 />
                 <div className="relative">
@@ -617,7 +617,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                       className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                         detailTx.transaction_type === 'credit'
                           ? 'bg-linear-to-br from-green-500 to-emerald-400'
-                          : 'bg-linear-to-br from-slate-500 to-slate-400'
+                          : 'bg-linear-to-br from-red-500 to-orange-400'
                       }`}
                     >
                       {detailTx.transaction_type === 'credit' ? (
@@ -638,7 +638,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                     className={`text-3xl font-bold mb-1 ${
                       detailTx.transaction_type === 'credit'
                         ? 'text-green-500'
-                        : 'text-primary'
+                        : 'text-red-500'
                     }`}
                   >
                     {detailTx.transaction_type === 'credit' ? '+' : '-'}
@@ -930,14 +930,14 @@ function formatFullDate(dateString) {
   
   // Today
   if (date.toDateString() === now.toDateString()) {
-    return `Today at ${date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })}`;
+    return `Today at ${date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()}`;
   }
   
   // Yesterday
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   if (date.toDateString() === yesterday.toDateString()) {
-    return `Yesterday at ${date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })}`;
+    return `Yesterday at ${date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()}`;
   }
 
   // Older
@@ -947,5 +947,6 @@ function formatFullDate(dateString) {
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  });
+    hour12: true
+  }) + ` ${date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit', hour12: true }).slice(-2).toLowerCase()}`;
 }

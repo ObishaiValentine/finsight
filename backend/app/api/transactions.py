@@ -105,6 +105,12 @@ def get_analytics(current_user: dict = Depends(get_current_user)):
     """Get analytics data for charts."""
     return transaction_service.get_analytics(current_user["id"])
 
+@router.post("/reparse")
+def reparse_all_transactions(current_user: dict = Depends(get_current_user)):
+    """Re-run the parser on all existing transactions to fix old data."""
+    from app.services.transaction_service import transaction_service
+    updated = transaction_service.reparse_existing_transactions(current_user["id"])
+    return {"message": f"Successfully re-parsed and updated {updated} transactions."}
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)
 def get_transaction(

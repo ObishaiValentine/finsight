@@ -196,6 +196,49 @@ class TransactionService:
             print(f"Error during deduplication: {str(e)}")
             return 0
 
+    def reparse_existing_transactions(self, user_id: str) -> int:
+        """
+        Re-runs the HybridParser on all existing transactions for a user
+        and updates the merchant names if the parser found a better one.
+        """
+        try:
+            # Fetch all transactions with raw_text
+            response = (
+                supabase.table("transactions")
+                .select("id, raw_text, merchant")
+                .eq("user_id", user_id)
+                .execute()
+            )
+            transactions = response.data or []
+            
+            updated_count = 0
+
+            for tx in transactions:
+                raw_text = tx.get("raw_text")
+                if not raw_text:
+                    continue
+
+                # Parse the text using the NEW parser logic
+                parsed = self.parser.parse_to_dict(raw_text)
+                new_merchant = parsed.get("merchant")
+
+                # If the new merchant name is different and valid, update it
+                if new_merchant and new_merchant != tx.get("merchant"):
+                    supabase.table("transactions").update({
+                        "merchant": new_merchant,
+                        "confidence": parsed.get("confidence", tx.get("confidence")),
+                        # Optionally update category if you want
+                        # "category": category_service.categorize(text=new_merchant, transaction_type=parsed.get("transaction_type"))
+                    }).eq("id", tx["id"]).execute()
+                    
+                    updated_count += 1
+
+            return updated_count
+
+        except Exception as e:
+            print(f"Error during re-parse: {str(e)}")
+            return 0
+
     def get_stats(self, user_id: str) -> Dict:
         """Get statistics, with timezone-accurate 'Today' calculations."""
         try:
