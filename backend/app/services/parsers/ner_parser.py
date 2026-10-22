@@ -29,7 +29,10 @@ class NERParser:
 
     def _clean_merchant_noise(self, text: str) -> str:
         """Clean merchant name from noise."""
-        # Leading prefixes
+        if not text:
+            return ""
+            
+        # 1. Remove leading transfer prefixes
         text = re.sub(
             r"^(?:transfer\s+(?:from|to)|payment\s+(?:from|to)|from|to)\s+",
             "",
@@ -37,36 +40,42 @@ class NERParser:
             flags=re.IGNORECASE,
         )
 
-        # POS prefix
+        # 2. POS prefix
         text = re.sub(r"^pos\s+pur(?:chase)?\s*@?\s*", "", text, flags=re.IGNORECASE)
         text = re.sub(r"^pos\s+", "", text, flags=re.IGNORECASE)
 
-        # NIP prefix
+        # 3. NIP prefix
         text = re.sub(r"^nip//\d+\s*-\s*", "", text, flags=re.IGNORECASE)
         text = re.sub(r"^nip//\d+\s*", "", text, flags=re.IGNORECASE)
         text = re.sub(r"^nip//\s*", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"^from\s+", "", text, flags=re.IGNORECASE)
 
-        # UBA MOB/UTO pattern: "MOB/UTO/GIFT KINGDOM/fund/38186694540"
+        # 4. UBA TNF pattern (e.g., "TNF-Valentine Obishai/..." or "TNF-/ONYE/...")
+        tnf_match = re.search(r"TNF-(.+?)(?:/|$)", text, re.IGNORECASE)
+        if tnf_match:
+            text = tnf_match.group(1).strip()
+            text = re.sub(r"^[/-]", "", text).strip()
+
+        # 5. UBA MOB/UTO pattern
         mob_match = re.match(r"^mob/uto/([^/]+)/", text, re.IGNORECASE)
         if mob_match:
             text = mob_match.group(1).strip()
 
-        # UBA TNF pattern: "TNF-/NXG :MOBILE TRF TO UBA/ Breakfast /OBISHAI VA"
-        tnf_match = re.search(r"/\s*([A-Za-z][A-Za-z\s]{2,}?)\s*/", text)
-        if tnf_match and len(tnf_match.group(1).strip()) > 3:
-            text = tnf_match.group(1).strip()
+        # 6. Remove trailing asterisks and weird numbers (e.g., "* - 0.75 *")
+        text = re.sub(r"\*.*$", "", text)
+        text = re.sub(r"-\s*\d+(\.\d+)?\s*\*?$", "", text)
+        text = text.replace("*", "")
 
-        # //MOB/UTO/... removal
-        text = re.sub(r"//mob/\w+/\w+/[^\s]*", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"//[A-Za-z]+/[A-Za-z]+/[^\s/]*", "", text, flags=re.IGNORECASE)
+        # 7. VAT Charge specific cleanup (e.g., "VAT charge for Transfer from Valentine")
+        vat_match = re.search(r"VAT charge for Transfer from\s+([A-Za-z\s]+)", text, re.IGNORECASE)
+        if vat_match:
+            return f"VAT - {vat_match.group(1).strip()}"
 
-        # Long IDs
+        # 8. Remove long IDs
         text = re.sub(r"\b[A-Z]{2,}\d{10,}\b", "", text)
         text = re.sub(r"\b[A-Z0-9]{7,10}\b\s*[-]?\s*", " ", text)
         text = re.sub(r"\b\d{6,}\b\s*/?\s*", " ", text)
 
-        # Stop-word truncation
+        # 9. Stop-word truncation
         stop_words = [
             "transaction remarks", "date and time", "available balance",
             "cleared balance", "value date", "transaction location",
@@ -76,13 +85,13 @@ class NERParser:
             if stop in text.lower():
                 text = text[:text.lower().index(stop)]
 
-        # Trailing short uppercase
+        # 10. Trailing short uppercase
         text = re.sub(r"\s+[A-Z]{1,2}$", "", text)
 
-        # Collapse whitespace
-        text = re.sub(r"\s+", " ", text).strip()
+        # 11. Collapse whitespace
+        text = re.sub(r"\s+", " ", text).strip(" .,;:-")
 
-        # Invalid phrases
+        # 12. Invalid phrases
         invalid_phrases = [
             "are below", "below", "summary", "details", "alert",
             "notification", "s name", "name", "s name:",
@@ -91,7 +100,7 @@ class NERParser:
             return ""
 
         return text
-    
+
     def _extract_field_after_keyword(self, text: str, keyword_pattern: str) -> Optional[str]:
         """Extract value after a field keyword with stop conditions."""
         stop_keywords = (

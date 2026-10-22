@@ -1218,3 +1218,16 @@ Now that the Dashboard is solid and duplicates are handled, we need to focus on 
 - **Known Note:** Emails are currently sent via Supabase's default SMTP. Later, we must connect a custom SMTP provider (Resend/SendGrid) to send emails from a `@finsight.app` domain.
 
 ---
+
+---
+
+## 34. SESSION LOG UPDATE
+
+### Session 011 — Infrastructure Keep-Alive 🟢
+- **Backend Health Endpoint:** Added a lightweight `/health` endpoint to the backend (`main.py`) for uptime monitoring.
+- **Keep-Alive Setup (Anti-Sleep):** Because the backend is hosted on Render's free tier (which sleeps after 15 minutes of inactivity), we set up a two-layer external ping system:
+  1. **UptimeRobot:** Pinging `/health` every 5 minutes.
+  2. **cron-job.org:** Pinging `/health` every 10 minutes as a backup.
+- **Result:** The backend will now stay awake 24/7, ensuring instant login times and preventing the 90-second timeout errors for users.
+
+---

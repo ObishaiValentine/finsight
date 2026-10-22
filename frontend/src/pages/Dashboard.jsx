@@ -7,7 +7,7 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigation } from '../hooks/useNavigation';
-import { useSync } from '../hooks/useSync'; // FIXED IMPORT PATH
+import { useSync } from '../hooks/useSync';
 import { transactionService } from '../services/transactionService';
 import AuroraBackground from '../components/AuroraBackground';
 import ConnectEmailButton from '../components/ConnectEmailButton';
@@ -31,13 +31,17 @@ function formatAmount(amount) {
 }
 
 function formatRelativeDate(dateString) {
+  if (!dateString) return '—';
   const date = new Date(dateString);
   const now = new Date();
+  
+  if (date.toDateString() === now.toDateString()) {
+    return `Today at ${date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })}`;
+  }
   const diffMs = now - date;
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffDays = Math.floor(diffHours / 24);
-  if (diffHours < 1) return 'Just now';
-  if (diffHours < 24) return `${diffHours}h ago`;
+  
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays} days ago`;
   return date.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
@@ -92,10 +96,7 @@ export default function Dashboard({ onReady }) {
     return unsubscribe;
   }, [subscribe, fetchData]);
 
-  const todayIncome = stats?.today_income || 0;
-  const todayExpenses = stats?.today_expenses || 0;
-  const todayNet = todayIncome - todayExpenses;
-  const hasTodayActivity = todayIncome > 0 || todayExpenses > 0;
+  const todayNet = (stats?.today_income || 0) - (stats?.today_expenses || 0);
 
   return (
     <div className="space-y-6">
@@ -157,17 +158,7 @@ export default function Dashboard({ onReady }) {
                 </p>
               </div>
             </div>
-            {loading ? (
-              <Loader2 size={16} className="animate-spin text-blue-500" />
-            ) : (
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
-                (stats?.net_balance || 0) >= 0
-                  ? isDark ? 'bg-green-500/15 text-green-400 border-green-500/20' : 'bg-green-50 text-green-600 border-green-200'
-                  : isDark ? 'bg-red-500/15 text-red-400 border-red-500/20' : 'bg-red-50 text-red-600 border-red-200'
-              }`}>
-                {(stats?.net_balance || 0) >= 0 ? 'Positive' : 'Negative'}
-              </span>
-            )}
+            {loading && <Loader2 size={16} className="animate-spin text-blue-500" />}
           </div>
           <p className={`text-4xl md:text-5xl font-extrabold mb-3 tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
             {loading ? '...' : formatAmount(stats?.net_balance || 0)}
@@ -183,6 +174,7 @@ export default function Dashboard({ onReady }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         
+        {/* 1. TODAY'S CASH FLOW */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -203,25 +195,12 @@ export default function Dashboard({ onReady }) {
                   <line x1="3" y1="10" x2="21" y2="10"></line>
                 </svg>
               </div>
-              
-              {/* ONLY SHOW BADGE IF THERE IS ACTIVITY TODAY */}
-              {hasTodayActivity && (
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${
-                  todayNet >= 0 
-                    ? 'bg-green-500/10 text-green-500' 
-                    : 'bg-red-500/10 text-red-500'
-                }`}>
-                  {todayNet >= 0 ? 'Positive' : 'Negative'}
-                </span>
-              )}
             </div>
             <p className="text-muted text-xs mb-1 font-medium">Today Cash Flow</p>
             <p className={`text-xl md:text-2xl font-bold mb-2 ${
               todayNet > 0 
                 ? 'text-green-500' 
-                : todayNet < 0 
-                  ? 'text-red-500' 
-                  : isDark ? 'text-white' : 'text-slate-900'
+                : isDark ? 'text-white' : 'text-slate-900'
             }`}>
               {loading ? '...' : (
                 <>
@@ -231,12 +210,13 @@ export default function Dashboard({ onReady }) {
               )}
             </p>
             <div className="flex items-center justify-between text-xs mt-2 pt-2 border-t border-app">
-              <span className="text-green-500 font-medium">+{formatAmount(todayIncome)}</span>
-              <span className="text-red-500 font-medium">-{formatAmount(todayExpenses)}</span>
+              <span className="text-green-500 font-medium">+{formatAmount(stats?.today_income || 0)}</span>
+              <span className="text-primary font-medium">-{formatAmount(stats?.today_expenses || 0)}</span>
             </div>
           </div>
         </motion.div>
 
+        {/* 2. TOTAL INCOME */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -260,6 +240,7 @@ export default function Dashboard({ onReady }) {
           </p>
         </motion.div>
 
+        {/* 3. TOTAL EXPENSES */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -270,10 +251,10 @@ export default function Dashboard({ onReady }) {
           }`}
         >
           <div className="flex items-start justify-between mb-4">
-            <div className="w-10 h-10 rounded-lg bg-linear-to-br from-red-500 to-orange-400 flex items-center justify-center shadow-lg shadow-red-500/20">
+            <div className="w-10 h-10 rounded-lg bg-linear-to-br from-slate-500 to-slate-400 flex items-center justify-center shadow-lg shadow-slate-500/20">
               <TrendingDown size={20} className="text-white" />
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-red-500/10 text-red-500">
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-slate-500/10 text-slate-500">
               All Time
             </span>
           </div>
@@ -285,6 +266,7 @@ export default function Dashboard({ onReady }) {
 
       </div>
 
+      {/* RECENT TRANSACTIONS */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -329,7 +311,7 @@ export default function Dashboard({ onReady }) {
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
                   tx.transaction_type === 'credit'
                     ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                    : 'bg-red-500/10 text-red-600 dark:text-red-400'
+                    : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'
                 }`}>
                   {tx.transaction_type === 'credit' ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
                 </div>
@@ -344,7 +326,7 @@ export default function Dashboard({ onReady }) {
                 <p className={`text-sm font-semibold shrink-0 ${
                   tx.transaction_type === 'credit'
                     ? 'text-green-600 dark:text-green-400'
-                    : 'text-red-600 dark:text-red-400'
+                    : 'text-primary'
                 }`}>
                   {tx.transaction_type === 'credit' ? '+' : '-'}
                   {formatAmount(tx.amount)}

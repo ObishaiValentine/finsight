@@ -468,7 +468,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                       className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
                         tx.transaction_type === 'credit'
                           ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                          : 'bg-red-500/10 text-red-600 dark:text-red-400'
+                          : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'
                       }`}
                     >
                       {tx.transaction_type === 'credit' ? (
@@ -485,14 +485,14 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                         {isHidden && <EyeOff size={12} className="text-amber-500 shrink-0" />}
                       </div>
                       <p className="text-xs text-muted md:hidden">
-                        {formatDate(tx.transaction_date)} • {tx.bank_name || 'Unknown'}
+                        {formatFullDate(tx.transaction_date)} • {tx.bank_name || 'Unknown'}
                       </p>
                     </div>
                     <p
                       className={`text-sm font-semibold shrink-0 md:hidden ${
                         tx.transaction_type === 'credit'
                           ? 'text-green-600 dark:text-green-400'
-                          : 'text-red-600 dark:text-red-400'
+                          : 'text-primary'
                       }`}
                     >
                       {tx.transaction_type === 'credit' ? '+' : '-'}
@@ -511,7 +511,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                       className={`text-xs px-2 py-1 rounded-full font-medium ${
                         tx.transaction_type === 'credit'
                           ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                          : 'bg-red-500/10 text-red-600 dark:text-red-400'
+                          : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'
                       }`}
                     >
                       {tx.transaction_type?.toUpperCase() || '—'}
@@ -521,7 +521,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                   {/* Date */}
                   <div className="hidden md:flex col-span-2 items-center">
                     <span className="text-sm text-secondary">
-                      {formatDate(tx.transaction_date)}
+                      {formatFullDate(tx.transaction_date)}
                     </span>
                   </div>
 
@@ -531,7 +531,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                       className={`text-sm font-semibold ${
                         tx.transaction_type === 'credit'
                           ? 'text-green-600 dark:text-green-400'
-                          : 'text-red-600 dark:text-red-400'
+                          : 'text-primary'
                       }`}
                     >
                       {tx.transaction_type === 'credit' ? '+' : '-'}
@@ -608,7 +608,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                   className={`absolute -top-20 -right-20 w-56 h-56 rounded-full blur-3xl ${
                     detailTx.transaction_type === 'credit'
                       ? 'bg-linear-to-br from-green-500/20 to-emerald-400/10'
-                      : 'bg-linear-to-br from-red-500/20 to-orange-400/10'
+                      : 'bg-linear-to-br from-slate-500/20 to-slate-400/10'
                   }`}
                 />
                 <div className="relative">
@@ -617,7 +617,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                       className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                         detailTx.transaction_type === 'credit'
                           ? 'bg-linear-to-br from-green-500 to-emerald-400'
-                          : 'bg-linear-to-br from-red-500 to-orange-400'
+                          : 'bg-linear-to-br from-slate-500 to-slate-400'
                       }`}
                     >
                       {detailTx.transaction_type === 'credit' ? (
@@ -638,7 +638,7 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                     className={`text-3xl font-bold mb-1 ${
                       detailTx.transaction_type === 'credit'
                         ? 'text-green-500'
-                        : 'text-red-500'
+                        : 'text-primary'
                     }`}
                   >
                     {detailTx.transaction_type === 'credit' ? '+' : '-'}
@@ -923,25 +923,29 @@ function formatAmount(amount) {
   return '₦' + Number(amount).toLocaleString('en-NG', { maximumFractionDigits: 2 });
 }
 
-function formatDate(dateString) {
+function formatFullDate(dateString) {
   if (!dateString) return '—';
   const date = new Date(dateString);
+  const now = new Date();
+  
+  // Today
+  if (date.toDateString() === now.toDateString()) {
+    return `Today at ${date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })}`;
+  }
+  
+  // Yesterday
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) {
+    return `Yesterday at ${date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })}`;
+  }
+
+  // Older
   return date.toLocaleDateString('en-NG', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  });
-}
-
-function formatFullDate(dateString) {
-  if (!dateString) return '—';
-  const date = new Date(dateString);
-  return date.toLocaleString('en-NG', {
-    weekday: 'short', 
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
+    hour: 'numeric',
     minute: '2-digit',
   });
 }

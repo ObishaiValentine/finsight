@@ -51,15 +51,14 @@ export function AuthProvider({ children }) {
   // Real login via backend
   const login = async (email, password) => {
   const data = await authService.login(email, password);
-
     localStorage.setItem('finsight-token', data.access_token);
     localStorage.setItem('finsight-user', JSON.stringify(data.user));
-
+    
+    // ADD THIS LINE: Stamp the time so App.jsx knows we just logged in
+    localStorage.setItem('finsight-last-active', Date.now().toString());
+    
     setUser(data.user);
-
-    // Auto-sync Gmail in background after login (non-blocking)
     autoSyncOnLogin(data.user.id).catch(() => {});
-
     return data.user;
   };
 
