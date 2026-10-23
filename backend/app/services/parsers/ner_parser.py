@@ -23,51 +23,58 @@ class NERParser:
             
         text = text.strip()
 
-        # 1. Carbon NIP pattern: "NIP//123 - FROM OBISHAI VALENTINE//MOB/UTO"
+        # 1. USSD / MOB TOPUP (Strip numbers)
+        if "USSD TOPUP" in text.upper() or "MOB TOPUP" in text.upper():
+            return "USSD TOPUP"
+
+        # 2. ATS POS
+        if "ATS POS" in text.upper() or "ATS-POS" in text.upper():
+            return "ATS POS"
+
+        # 3. Spotify (Strip terminal IDs)
+        if "SPOTIFY" in text.upper():
+            return "Spotify Lagos"
+
+        # 4. TRSF BO (e.g., "N-101889.../TRSF BO UNITED NATIONS DEVEL:ST")
+        if "TRSF BO" in text.upper():
+            match = re.search(r"TRSF BO\s+(.+?)(?::|$)", text, re.IGNORECASE)
+            if match:
+                return match.group(1).strip().title()
+
+        # 5. Carbon NIP pattern: "NIP//123 - FROM OBISHAI VALENTINE//MOB/UTO"
         if "NIP//" in text.upper():
             match = re.search(r"NIP//\d+\s*-\s*FROM\s+([A-Za-z\s]+)", text, re.IGNORECASE)
             if match:
                 return match.group(1).strip().title()
 
-        # 2. UBA MOB/UTO pattern: "MOB/UTO/CHRISTABEL OSE/fund/123"
+        # 6. UBA MOB/UTO pattern: "MOB/UTO/CHRISTABEL OSE/fund/123"
         if "MOB/UTO/" in text.upper():
             match = re.search(r"MOB/UTO/([^/]+)", text, re.IGNORECASE)
             if match:
                 return match.group(1).strip().title()
 
-        # 3. UBA TNF/TRF pattern: "TNF-FAVOUR OROROGHAEBI/money from FAVOUR"
+        # 7. UBA TNF/TRF pattern: "TNF-FAVOUR OROROGHAEBI/money from FAVOUR"
         if "TNF-" in text.upper() or "TRF-" in text.upper():
             match = re.search(r"(?:TNF|TRF)-([^/]+)", text, re.IGNORECASE)
             if match:
                 return match.group(1).strip().title()
 
-        # 4. UBA POS/Web pattern: "POS Pur @ 2214XFX8-EVELYN OG..." or "Web Pur @ -DME*Spotify..."
+        # 8. POS/Web Pur pattern
         if "PUR @" in text.upper() or "POS " in text.upper() or "WEB " in text.upper():
-            # Remove the prefix
             clean_text = re.sub(r"^(?:POS|WEB)\s+Pur\s*@?\s*", "", text, flags=re.IGNORECASE)
-            
-            # If it has a brand inside asterisks like "*Spotify*"
-            if "*" in clean_text:
-                brand_match = re.search(r"\*(.+?)(?:\s|\*)", clean_text)
-                if brand_match:
-                    return brand_match.group(1).strip().title()
-            
-            # Remove leading transaction IDs (e.g. "2214XFX8-")
+            # Remove leading transaction IDs
             clean_text = re.sub(r"^[A-Z0-9]{6,}-", "", clean_text)
-            
-            # Remove trailing locations (Lagos, Abuja, etc.)
+            # Remove trailing locations
             clean_text = re.sub(r"\s+(?:LAGOS|ABUJA|IBADAN|PORT HARCOURT|NIGERIA)\b.*", "", clean_text, flags=re.IGNORECASE)
-            
-            # Remove trailing terminal IDs like P4830
+            # Remove trailing terminal IDs
             clean_text = re.sub(r"\s+P\d+.*", "", clean_text)
             
             if len(clean_text) > 2:
                 return clean_text.strip().title()
 
-        # 5. General cleanup for anything else
-        text = re.sub(r"USSD TOPUP \d+.*", "USSD Topup", text, flags=re.IGNORECASE)
-        text = text.split("*")[0] # Strip asterisks
-        text = re.sub(r"\d{1,2}-[A-Za-z]{3}-\d{4}.*", "", text, flags=re.IGNORECASE) # Strip dates
+        # 8. General cleanup
+        text = text.split("*")[0] 
+        text = re.sub(r"\d{1,2}-[A-Za-z]{3}-\d{4}.*", "", text, flags=re.IGNORECASE) 
         text = re.sub(r"Transaction\s+(?:Reference|Narration|Remarks)", "", text, flags=re.IGNORECASE)
         text = text.strip(" .,;:-_/")
 
