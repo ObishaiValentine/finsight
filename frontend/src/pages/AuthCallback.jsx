@@ -1,27 +1,27 @@
 import { useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Loader2 } from 'lucide-react';
-import { useNavigation } from '../hooks/useNavigation';
 
 export default function AuthCallback() {
-  const { setActivePage } = useNavigation();
-
   useEffect(() => {
     const handleAuth = async () => {
-      // Supabase automatically detects the session from the URL hash
+      // Removed 'error' from this line to fix the ESLint warning
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
-        // Force a redirect to the dashboard by reloading the root and letting App.jsx handle it
+        // Bridge the gap: Save the Supabase session into your app's custom keys
+        localStorage.setItem('finsight-token', session.access_token);
+        localStorage.setItem('finsight-user', JSON.stringify(session.user));
+        localStorage.setItem('finsight-last-active', Date.now().toString());
+        
         window.location.href = '/'; 
       } else {
-        // If error, go back to login
-        window.location.href = '/';
+        window.location.href = '/'; 
       }
     };
     
     handleAuth();
-  }, [setActivePage]);
+  }, []);
 
   return (
     <div className="min-h-dvh bg-app flex items-center justify-center">
