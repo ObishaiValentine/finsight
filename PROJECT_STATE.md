@@ -1264,3 +1264,23 @@ Now that the Dashboard is solid and duplicates are handled, we need to focus on 
 - **Next Step:** Deploy the TNF regex fix and instruct the user to run the SQL to delete the unparseable `gmail_id` rows if they want them gone from the UI.
 
 ---
+---
+
+## 38. SESSION LOG UPDATE
+
+### Session 015 — Data Cleanup & Parser Alignment 🟢
+- **SQL Data Correction:** Used Supabase SQL editor to clean up old, messy transaction merchant names (VAT charges, MOB/UTO, TNF-, POS, etc.) directly in the database.
+- **Parser Logic Aligned:** Updated `ner_parser.py` to perfectly mimic the SQL cleanup logic. Future transactions will now automatically resolve as "USSD TOPUP", "ATS POS", "Spotify Lagos", "UNITED NATIONS", etc.
+- **Google API Quota Limit Hit:** The Gmail sync quota was temporarily exhausted due to frequent testing. `AUTO_SYNC_INTERVAL_MS` in `SyncContext.jsx` was increased to 15 minutes to prevent this in the future. (Google quota resets after 24 hours).
+- **UI Polish:** Pagination UI has been updated to a smart sliding window (e.g., `1 ... 4 5 6 ... 8`) with smooth Framer Motion hover scaling.
+
+---
+
+## 39. NEXT SESSION INSTRUCTIONS
+
+### The Immediate Next Tasks (Phase 1)
+Now that the transaction engine is solid, we need to focus on user experience and onboarding.
+
+1. **Onboarding Tour:** Build a step-by-step tutorial for first-time users (can use `react-joyride` or a custom Framer Motion overlay). Guide them to connect Gmail and view their first transactions.
+2. **Mobile UI Polish:** Ensure the sidebar, transaction tables, and modals look absolutely perfect on mobile screens (no overlapping text, proper padding).
+3. **Footer Links:** Add real links to the Footer (Social media, Privacy Policy, etc.).

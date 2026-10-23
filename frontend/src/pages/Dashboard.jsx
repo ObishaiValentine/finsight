@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Wallet, TrendingUp, TrendingDown, Plus,
-  ArrowUpRight, ArrowDownLeft, Loader2
+  ArrowUpRight, ArrowDownLeft, Loader2,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
@@ -191,6 +191,7 @@ export default function Dashboard({ onReady }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
+          onClick={() => setActivePage('analytics')}
           whileHover={{ y: -4 }}
           className={`rounded-xl p-5 cursor-pointer relative overflow-hidden border transition-colors ${
             isDark ? 'bg-[#13131a] border-white/5' : 'bg-white border-slate-200 shadow-sm'
@@ -233,6 +234,7 @@ export default function Dashboard({ onReady }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
+          onClick={() => setActivePage('analytics')}
           whileHover={{ y: -4 }}
           className={`rounded-xl p-5 cursor-pointer border transition-colors ${
             isDark ? 'bg-[#13131a] border-white/5' : 'bg-white border-slate-200 shadow-sm'
@@ -257,6 +259,7 @@ export default function Dashboard({ onReady }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.5 }}
+          onClick={() => setActivePage('analytics')}
           whileHover={{ y: -4 }}
           className={`rounded-xl p-5 cursor-pointer border transition-colors ${
             isDark ? 'bg-[#13131a] border-white/5' : 'bg-white border-slate-200 shadow-sm'
