@@ -198,39 +198,45 @@ class TransactionService:
 
     def reparse_existing_transactions(self, user_id: str) -> int:
         """
-        Re-runs the HybridParser on all existing transactions for a user
-        and updates the merchant names if the parser found a better one.
+        Re-runs the HybridParser on ALL existing transactions for a user.
         """
         try:
-            # Fetch all transactions with raw_text
-            response = (
-                supabase.table("transactions")
-                .select("id, raw_text, merchant")
-                .eq("user_id", user_id)
-                .execute()
-            )
-            transactions = response.data or []
+            # Fetch ALL transactions in chunks of 1000 (Supabase limit)
+            all_transactions = []
+            limit = 1000
+            offset = 0
             
+            while True:
+                response = (
+                    supabase.table("transactions")
+                    .select("id, raw_text, merchant")
+                    .eq("user_id", user_id)
+                    .range(offset, offset + limit - 1)
+                    .execute()
+                )
+                data = response.data or []
+                if not data:
+                    break
+                all_transactions.extend(data)
+                offset += limit
+
             updated_count = 0
 
-            for tx in transactions:
+            for tx in all_transactions:
                 raw_text = tx.get("raw_text")
                 
-                # Skip if no raw text OR if it's just a gmail ID (we can't parse it without the body)
+                # Skip if no raw text OR if it's just a gmail ID
                 if not raw_text or raw_text.startswith("gmail_id:"):
                     continue
 
-                # Parse the text using the NEW parser logic
                 parsed = self.parser.parse_to_dict(raw_text)
                 new_merchant = parsed.get("merchant")
 
-                # If the new merchant name is different and valid, update it
+                # Update if the name changed and isn't just "Unknown Merchant"
                 if new_merchant and new_merchant != tx.get("merchant"):
                     supabase.table("transactions").update({
                         "merchant": new_merchant,
                         "confidence": parsed.get("confidence", tx.get("confidence")),
-                        # Optionally update category if you want
-                        # "category": category_service.categorize(text=new_merchant, transaction_type=parsed.get("transaction_type"))
                     }).eq("id", tx["id"]).execute()
                     
                     updated_count += 1
@@ -240,7 +246,7 @@ class TransactionService:
         except Exception as e:
             print(f"Error during re-parse: {str(e)}")
             return 0
-
+        
     def get_stats(self, user_id: str) -> Dict:
         """Get statistics, with timezone-accurate 'Today' calculations."""
         try:

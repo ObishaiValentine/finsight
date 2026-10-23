@@ -1242,3 +1242,14 @@ Now that the Dashboard is solid and duplicates are handled, we need to focus on 
 - **Self-Healing Data:** The "Reparse Data" button now completely cleans old UBA and Carbon transactions.
 
 ---
+---
+
+## 36. SESSION LOG UPDATE
+
+### Session 013 — Regex Deep Dive & Pagination Polish 🟢
+- **NER Regex Perfection:** Refined `ner_parser.py` to strictly target `TNF-` prefixes (UBA), `NIP//` strings (Carbon), and `*Brand*` POS strings (Spotify). Added fallback to `Account Name` for UBA emails missing a narration.
+- **Smart Pagination:** Upgraded `Transactions.jsx` pagination from a static `1-5` limit to a dynamic sliding window (e.g., `1 ... 4 5 6 ... 8`). Added Framer Motion scaling on hover.
+- **Reparse Scalability:** Updated `reparse_existing_transactions` in the backend to fetch in batches of 1000, ensuring the "Reparse Data" button scans the *entire* database, not just the first 1000 rows.
+- **Known Limitation:** Transactions saved as `gmail_id:12345` (where the raw email text was overwritten by a bug in a very early version) cannot be re-parsed because the original text is lost. These will remain "Unknown Merchant" unless deleted.
+
+---

@@ -588,19 +588,57 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                 <ChevronLeft size={16} />
               </button>
 
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${
-                    currentPage === page
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-card border border-app text-secondary hover:text-primary'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
+              {/* Smart Pagination Window */}
+              {(() => {
+                const pages = [];
+                const maxVisible = 5;
+                
+                if (totalPages <= maxVisible) {
+                  for (let i = 1; i <= totalPages; i++) pages.push(i);
+                } else {
+                  pages.push(1);
+                  
+                  let start = Math.max(2, currentPage - 1);
+                  let end = Math.min(totalPages - 1, currentPage + 1);
+                  
+                  if (currentPage <= 3) {
+                    start = 2; end = 4;
+                  } else if (currentPage >= totalPages - 2) {
+                    start = totalPages - 3; end = totalPages - 1;
+                  }
+                  
+                  if (start > 2) pages.push('...');
+                  for (let i = start; i <= end; i++) pages.push(i);
+                  if (end < totalPages - 1) pages.push('...');
+                  
+                  pages.push(totalPages);
+                }
+
+                return pages.map((page, index) => {
+                  if (page === '...') {
+                    return (
+                      <span key={`dots-${index}`} className="w-8 h-8 flex items-center justify-center text-xs text-muted">
+                        ...
+                      </span>
+                    );
+                  }
+                  return (
+                    <motion.button
+                      key={page}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${
+                        currentPage === page
+                          ? 'bg-blue-500 text-white shadow-md shadow-blue-500/30'
+                          : 'bg-card border border-app text-secondary hover:text-primary'
+                      }`}
+                    >
+                      {page}
+                    </motion.button>
+                  );
+                });
+              })()}
 
               <button
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
