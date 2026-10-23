@@ -65,7 +65,7 @@ export default function Login({ onSwitchToSignup, onBackToLanding }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/` // Redirects back to your app after login
+        redirectTo: `${window.location.origin}/auth/callback` // Redirects back to your app after login
       }
     });
     if (error) setError(error.message);

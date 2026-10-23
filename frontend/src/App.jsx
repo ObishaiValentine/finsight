@@ -13,6 +13,7 @@ import Landing from './pages/Landing';
 import { useNavigation } from './hooks/useNavigation';
 import { useAuth } from './hooks/useAuth';
 import ResetPassword from './pages/ResetPassword';
+import AuthCallback from './pages/AuthCallback';
 
 const pageVariants = {
   initial: { opacity: 0 },
@@ -89,6 +90,9 @@ function App() {
     // Intercept the password reset URL before the normal app logic
   if (window.location.pathname === '/reset-password') {
     return <ResetPassword />;
+  }
+  if (window.location.pathname === '/auth/callback') {
+    return <AuthCallback />;
   }
 
   // Initial app loading
