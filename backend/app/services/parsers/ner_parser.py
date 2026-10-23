@@ -3,7 +3,7 @@ NER-based parser for Nigerian bank alerts.
 """
 
 import spacy
-from typing import Optional, List
+from typing import Optional
 import re
 
 
@@ -23,42 +23,58 @@ class NERParser:
             
         text = text.strip()
 
-         # 1. UBA TNF pattern: "TNF-FAVOUR OROROGHAEBI/money from FAVOUR"
+        # 1. Carbon NIP pattern: "NIP//123 - FROM OBISHAI VALENTINE//MOB/UTO"
+        if "NIP//" in text.upper():
+            match = re.search(r"NIP//\d+\s*-\s*FROM\s+([A-Za-z\s]+)", text, re.IGNORECASE)
+            if match:
+                return match.group(1).strip().title()
+
+        # 2. UBA MOB/UTO pattern: "MOB/UTO/CHRISTABEL OSE/fund/123"
+        if "MOB/UTO/" in text.upper():
+            match = re.search(r"MOB/UTO/([^/]+)", text, re.IGNORECASE)
+            if match:
+                return match.group(1).strip().title()
+
+        # 3. UBA TNF/TRF pattern: "TNF-FAVOUR OROROGHAEBI/money from FAVOUR"
         if "TNF-" in text.upper() or "TRF-" in text.upper():
-            # Find everything after TNF- or TRF-, up to the first slash or hyphen
             match = re.search(r"(?:TNF|TRF)-([^/]+)", text, re.IGNORECASE)
             if match:
-                text = match.group(1).strip()
+                return match.group(1).strip().title()
 
-        # 2. POS / Web Pur pattern: "Web Pur @ -DME*Spotify P4830 Lagos"
-        # We want the word between the asterisks
-        elif "*" in text and ("@" in text or "PUR" in text.upper() or "WEB" in text.upper()):
-            brand_match = re.search(r"\*(.+?)(?:WEB|Pur|-DME\s|\*)", text, re.IGNORECASE)
-            if brand_match:
-                text = brand_match.group(1).strip()
-            else:
-                # Fallback if no closing space
-                brand_match = re.search(r"\*(.+)", text)
+        # 4. UBA POS/Web pattern: "POS Pur @ 2214XFX8-EVELYN OG..." or "Web Pur @ -DME*Spotify..."
+        if "PUR @" in text.upper() or "POS " in text.upper() or "WEB " in text.upper():
+            # Remove the prefix
+            clean_text = re.sub(r"^(?:POS|WEB)\s+Pur\s*@?\s*", "", text, flags=re.IGNORECASE)
+            
+            # If it has a brand inside asterisks like "*Spotify*"
+            if "*" in clean_text:
+                brand_match = re.search(r"\*(.+?)(?:\s|\*)", clean_text)
                 if brand_match:
-                    text = brand_match.group(1).strip()
+                    return brand_match.group(1).strip().title()
+            
+            # Remove leading transaction IDs (e.g. "2214XFX8-")
+            clean_text = re.sub(r"^[A-Z0-9]{6,}-", "", clean_text)
+            
+            # Remove trailing locations (Lagos, Abuja, etc.)
+            clean_text = re.sub(r"\s+(?:LAGOS|ABUJA|IBADAN|PORT HARCOURT|NIGERIA)\b.*", "", clean_text, flags=re.IGNORECASE)
+            
+            # Remove trailing terminal IDs like P4830
+            clean_text = re.sub(r"\s+P\d+.*", "", clean_text)
+            
+            if len(clean_text) > 2:
+                return clean_text.strip().title()
 
-        # 3. Carbon NIP pattern: "NIP//123 - FROM OBISHAI VALENTINE//MOB/UTO"
-        elif "NIP//" in text.upper():
-            nip_match = re.search(r"NIP//\d+\s*-\s*FROM\s+(.+?)(?://|$)", text, re.IGNORECASE)
-            if nip_match:
-                text = nip_match.group(1).strip()
-
-        # General cleanup
-        text = re.sub(r"^(?:transfer\s+(?:from|to)|payment\s+(?:from|to))\s+", "", text, flags=re.IGNORECASE)
-        text = text.split("*")[0] # Strip trailing asterisks
-        text = re.sub(r"\d{1,2}-[A-Za-z]{3}-\d{4}.*", "", text, flags=re.IGNORECASE) 
+        # 5. General cleanup for anything else
+        text = re.sub(r"USSD TOPUP \d+.*", "USSD Topup", text, flags=re.IGNORECASE)
+        text = text.split("*")[0] # Strip asterisks
+        text = re.sub(r"\d{1,2}-[A-Za-z]{3}-\d{4}.*", "", text, flags=re.IGNORECASE) # Strip dates
         text = re.sub(r"Transaction\s+(?:Reference|Narration|Remarks)", "", text, flags=re.IGNORECASE)
         text = text.strip(" .,;:-_/")
 
         if len(text) < 3 or not re.search(r"[a-zA-Z]", text):
             return "Unknown Merchant"
 
-        return text
+        return text.title()
 
     def _extract_field_after_keyword(self, text: str, keyword_pattern: str) -> Optional[str]:
         stop_keywords = (
@@ -97,7 +113,7 @@ class NERParser:
         sender = self._extract_field_after_keyword(text, r"\bsender(?:'s)?\s*(?:name)?\b")
         if sender and sender != "Unknown Merchant": return sender
 
-        # Priority 4: Fallback to Account Name (crucial for UBA emails without narration)
+        # Priority 4: Fallback to Account Name
         account_name = self._extract_field_after_keyword(text, r"\baccount\s+name\b")
         if account_name and account_name != "Unknown Merchant": return account_name
 
