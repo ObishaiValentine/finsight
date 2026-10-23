@@ -955,32 +955,32 @@ function formatAmount(amount) {
 function formatFullDate(dateString) {
   if (!dateString) return '—';
   
-  // FIX: Strip out 'am'/'pm' from the raw string because our backend sometimes saves it inside the date object
+  // Strip existing am/pm to prevent double formatting
   let cleanStr = String(dateString).replace(/\s*(am|pm|AM|PM)/gi, '').trim();
-
   const date = new Date(cleanStr);
   
-  // If it's an invalid date after cleaning (like a weird gmail_id string), return unknown
   if (isNaN(date.getTime())) return 'Unknown Date'; 
 
   const now = new Date();
-  
   const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
   const formattedTime = date.toLocaleTimeString('en-NG', timeOptions).toLowerCase();
 
+  // Check if the time is exactly midnight (00:00:00). If so, don't show the time.
+  const isMidnight = date.getHours() === 0 && date.getMinutes() === 0;
+
   if (date.toDateString() === now.toDateString()) {
-    return `Today at ${formattedTime}`;
+    return isMidnight ? 'Today' : `Today at ${formattedTime}`;
   }
   
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   if (date.toDateString() === yesterday.toDateString()) {
-    return `Yesterday at ${formattedTime}`;
+    return isMidnight ? 'Yesterday' : `Yesterday at ${formattedTime}`;
   }
 
   return date.toLocaleDateString('en-NG', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }) + ` at ${formattedTime}`;
+  }) + (isMidnight ? '' : ` at ${formattedTime}`);
 }

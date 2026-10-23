@@ -113,6 +113,12 @@ class GmailSyncService:
             sender = alert.get('sender', '')
             body = alert.get('body', '')
 
+            # 🚨 CRITICAL FIX: Cut off the email before the "Recent transactions" table
+            # This stops the parser from grabbing old VAT charges and previous transfers
+            body_lower = body.lower()
+            if "recent transactions" in body_lower:
+                body = body[:body_lower.index("recent transactions")].strip()
+
             # Skip duplicates
             if self._is_duplicate(user_id, gmail_id):
                 skipped += 1
