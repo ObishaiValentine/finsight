@@ -3,8 +3,8 @@ import { gmailService } from '../services/gmailService';
 import { useAuth } from '../hooks/useAuth';
 import { SyncContext } from './SyncContext';
 
-const SYNC_COOLDOWN_MS = 90 * 1000;
-const AUTO_SYNC_INTERVAL_MS = 2 * 60 * 1000;
+const SYNC_COOLDOWN_MS = 100 * 1000;
+const AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
 export function SyncProvider({ children }) {
   const { isAuthenticated } = useAuth();
