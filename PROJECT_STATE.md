@@ -1253,3 +1253,14 @@ Now that the Dashboard is solid and duplicates are handled, we need to focus on 
 - **Known Limitation:** Transactions saved as `gmail_id:12345` (where the raw email text was overwritten by a bug in a very early version) cannot be re-parsed because the original text is lost. These will remain "Unknown Merchant" unless deleted.
 
 ---
+---
+
+## 37. SESSION LOG UPDATE
+
+### Session 014 — Regex Final Polish & UI Slider 🟢
+- **Reparse Logic Clarified:** Confirmed that "Reparsed 0 transactions" means the data is already clean. Fixed a regex edge case in `ner_parser.py` that was failing to strip `TNF-` and `TRF-` prefixes from UBA alerts due to slash placement.
+- **Slider Fix:** Updated `Transactions.jsx` to use a smart pagination window (`1 ... 4 5 6 ... 8`). The pagination is now animated and scales on hover.
+- **Known "Unknown Merchant" Edge Case:** The `Unknown Merchant` showing for some Carbon alerts is caused by a bug in the very first version of the app where the `raw_text` saved to the database was just `gmail_id:1234` instead of the actual email body. These specific old rows cannot be parsed because the email text was never saved.
+- **Next Step:** Deploy the TNF regex fix and instruct the user to run the SQL to delete the unparseable `gmail_id` rows if they want them gone from the UI.
+
+---

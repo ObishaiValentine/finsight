@@ -197,11 +197,9 @@ class TransactionService:
             return 0
 
     def reparse_existing_transactions(self, user_id: str) -> int:
-        """
-        Re-runs the HybridParser on ALL existing transactions for a user.
-        """
+        """Force re-parse ALL existing transactions."""
         try:
-            # Fetch ALL transactions in chunks of 1000 (Supabase limit)
+            # Fetch ALL transactions
             all_transactions = []
             limit = 1000
             offset = 0
@@ -209,7 +207,7 @@ class TransactionService:
             while True:
                 response = (
                     supabase.table("transactions")
-                    .select("id, raw_text, merchant")
+                    .select("id, raw_text")
                     .eq("user_id", user_id)
                     .range(offset, offset + limit - 1)
                     .execute()
@@ -225,21 +223,22 @@ class TransactionService:
             for tx in all_transactions:
                 raw_text = tx.get("raw_text")
                 
-                # Skip if no raw text OR if it's just a gmail ID
+                # If it's an old broken gmail_id, force the name to "Unknown Merchant"
                 if not raw_text or raw_text.startswith("gmail_id:"):
+                    supabase.table("transactions").update({"merchant": "Unknown Merchant"}).eq("id", tx["id"]).execute()
                     continue
 
+                # Run the new parser
                 parsed = self.parser.parse_to_dict(raw_text)
                 new_merchant = parsed.get("merchant")
 
-                # Update if the name changed and isn't just "Unknown Merchant"
-                if new_merchant and new_merchant != tx.get("merchant"):
-                    supabase.table("transactions").update({
-                        "merchant": new_merchant,
-                        "confidence": parsed.get("confidence", tx.get("confidence")),
-                    }).eq("id", tx["id"]).execute()
-                    
-                    updated_count += 1
+                # FORCE UPDATE: No "if" check. Just write it.
+                supabase.table("transactions").update({
+                    "merchant": new_merchant,
+                    "confidence": parsed.get("confidence", 0.5),
+                }).eq("id", tx["id"]).execute()
+                
+                updated_count += 1
 
             return updated_count
 
