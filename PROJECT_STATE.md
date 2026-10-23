@@ -1231,3 +1231,14 @@ Now that the Dashboard is solid and duplicates are handled, we need to focus on 
 - **Result:** The backend will now stay awake 24/7, ensuring instant login times and preventing the 90-second timeout errors for users.
 
 ---
+---
+
+## 35. SESSION LOG UPDATE
+
+### Session 012 — Parser Refinement & Data Cleaning 🟢
+- **Carbon History Trap Fixed:** Updated `gmail_sync_service.py` to truncate the email body at the "Recent transactions" string. This prevents the parser from accidentally extracting old VAT charges (e.g., `* - 0.75 *`) from the history table.
+- **NER Cleanup Enhancements:** Rewrote `_clean_merchant_noise` in `ner_parser.py`. It now perfectly extracts `OBISHAI VALENTINE` from Carbon NIP strings, `CHRISTABEL OSE` from UBA MOB/UTO strings, and `Spotify` from POS strings.
+- **Midnight Time Fix:** Updated `Transactions.jsx` `formatFullDate` to hide the timestamp if the email didn't include one (prevents the confusing `1:00 am` display).
+- **Self-Healing Data:** The "Reparse Data" button now completely cleans old UBA and Carbon transactions.
+
+---
