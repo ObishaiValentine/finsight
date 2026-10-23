@@ -172,9 +172,10 @@ class GmailSyncService:
                 "confidence": parsed.get("confidence", 0.0),
                 "category": category,
                 "bank_name": bank,
-                "raw_text": f"gmail_id:{gmail_id}",
+                # Save the actual email body! We prefix it with the ID for deduplication.
+                "raw_text": f"gmail_id:{gmail_id}\n\n{body}",
             }
-
+            
             # Save
             try:
                 supabase.table("transactions").insert(transaction_data).execute()

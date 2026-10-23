@@ -197,9 +197,7 @@ class TransactionService:
             return 0
 
     def reparse_existing_transactions(self, user_id: str) -> int:
-        """Force re-parse ALL existing transactions."""
         try:
-            # Fetch ALL transactions
             all_transactions = []
             limit = 1000
             offset = 0
@@ -207,7 +205,7 @@ class TransactionService:
             while True:
                 response = (
                     supabase.table("transactions")
-                    .select("id, raw_text")
+                    .select("id, raw_text, merchant")
                     .eq("user_id", user_id)
                     .range(offset, offset + limit - 1)
                     .execute()
@@ -223,22 +221,21 @@ class TransactionService:
             for tx in all_transactions:
                 raw_text = tx.get("raw_text")
                 
-                # If it's an old broken gmail_id, force the name to "Unknown Merchant"
+                # SKIP: If we don't have the actual email body, don't touch it.
                 if not raw_text or raw_text.startswith("gmail_id:"):
-                    supabase.table("transactions").update({"merchant": "Unknown Merchant"}).eq("id", tx["id"]).execute()
                     continue
 
-                # Run the new parser
                 parsed = self.parser.parse_to_dict(raw_text)
                 new_merchant = parsed.get("merchant")
 
-                # FORCE UPDATE: No "if" check. Just write it.
-                supabase.table("transactions").update({
-                    "merchant": new_merchant,
-                    "confidence": parsed.get("confidence", 0.5),
-                }).eq("id", tx["id"]).execute()
-                
-                updated_count += 1
+                # Only update if the new merchant is valid
+                if new_merchant and new_merchant != "Unknown Merchant" and new_merchant != tx.get("merchant"):
+                    supabase.table("transactions").update({
+                        "merchant": new_merchant,
+                        "confidence": parsed.get("confidence", 0.5),
+                    }).eq("id", tx["id"]).execute()
+                    
+                    updated_count += 1
 
             return updated_count
 
