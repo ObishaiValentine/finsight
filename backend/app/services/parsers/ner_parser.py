@@ -23,17 +23,17 @@ class NERParser:
             
         text = text.strip()
 
-        # 1. UBA TNF pattern: "TNF-FAVOUR OROROGHAEBI/money from FAVOUR"
-        # We want the part right after TNF- and before the slash
-        if "TNF-" in text.upper():
-            parts = re.split(r"TNF-", text, flags=re.IGNORECASE)
-            if len(parts) > 1:
-                text = parts[1].split("/")[0].strip()
+         # 1. UBA TNF pattern: "TNF-FAVOUR OROROGHAEBI/money from FAVOUR"
+        if "TNF-" in text.upper() or "TRF-" in text.upper():
+            # Find everything after TNF- or TRF-, up to the first slash or hyphen
+            match = re.search(r"(?:TNF|TRF)-([^/]+)", text, re.IGNORECASE)
+            if match:
+                text = match.group(1).strip()
 
         # 2. POS / Web Pur pattern: "Web Pur @ -DME*Spotify P4830 Lagos"
         # We want the word between the asterisks
-        elif "*" in text and ("@" in text or "POS" in text.upper() or "WEB" in text.upper()):
-            brand_match = re.search(r"\*(.+?)(?:\s|\*)", text)
+        elif "*" in text and ("@" in text or "PUR" in text.upper() or "WEB" in text.upper()):
+            brand_match = re.search(r"\*(.+?)(?:WEB|Pur|-DME\s|\*)", text, re.IGNORECASE)
             if brand_match:
                 text = brand_match.group(1).strip()
             else:
