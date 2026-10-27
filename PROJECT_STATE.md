@@ -1284,3 +1284,36 @@ Now that the transaction engine is solid, we need to focus on user experience an
 1. **Onboarding Tour:** Build a step-by-step tutorial for first-time users (can use `react-joyride` or a custom Framer Motion overlay). Guide them to connect Gmail and view their first transactions.
 2. **Mobile UI Polish:** Ensure the sidebar, transaction tables, and modals look absolutely perfect on mobile screens (no overlapping text, proper padding).
 3. **Footer Links:** Add real links to the Footer (Social media, Privacy Policy, etc.).
+
+---
+
+## 40. SESSION LOG UPDATE
+
+### Session 016 — Google OAuth & Mobile Polish 🟢
+- **Google OAuth Fully Functional:** 
+  - Created `AuthCallback.jsx` to intercept the Supabase redirect.
+  - Built a "bridge" in `AuthCallback.jsx` that takes the Supabase session token and saves it into the app's custom `localStorage` keys (`finsight-token`, `finsight-user`, `finsight-last-active`).
+  - This ensures the custom `AuthProvider` recognizes the Google login immediately and lands the user on the Dashboard, bypassing the 15-minute landing page timeout.
+- **Dashboard UI:** Made the 3 stat cards (Today Cash Flow, Income, Expenses) clickable, routing the user to the Analytics page.
+- **Mobile Performance:** Reduced the number of animated Aurora background blobs in `Hero.jsx` and disabled mobile zooming in `index.html` to fix the "zoomed in" glitch and lag.
+- **Footer & Auth UI:** Removed GitHub OAuth buttons and replaced them with the official Google button.
+
+---
+
+## 41. NEXT SESSION INSTRUCTIONS
+
+### The Immediate Next Tasks (Phase 1)
+Now that users can sign in via Google and Email, we need to focus on the core value proposition: **connecting their Gmail**. 
+
+1. **Gmail API Publishing (Critical):** 
+   - Ensure the Google Cloud Console OAuth consent screen is **Published to Production** (not Testing) so real users can connect their Gmail.
+   - Ensure the requested scopes (`gmail.readonly`, `userinfo.email`) are added to the consent screen.
+2. **Gmail Connection UX:** 
+   - Make sure the "Connect Email" button triggers the `getAuthUrl` backend endpoint correctly for real users.
+   - Test the flow: Sign up with Google -> Go to Accounts -> Click Connect Email -> Grant Gmail permissions -> Verify transactions sync.
+
+### Phase 2 Roadmap (Next Features)
+Once Gmail is fully open to the public:
+- Budget Goals (Phase 2)
+- Multi-Account Gmail support
+- Custom Categories

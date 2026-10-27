@@ -123,6 +123,17 @@ export default function Accounts({ onReady }) {
     }
   };
 
+    // Force reload if returning from Gmail OAuth
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('gmail') === 'success') {
+      // Clean the URL so it doesn't trigger again
+      window.history.replaceState({}, '', window.location.pathname);
+      // Force a hard reload so the AuthContext and SyncContext fetch the new status
+      window.location.reload();
+    }
+  }, []);
+
   useEffect(() => {
     const loadAccounts = async () => {
       await fetchAccounts();
