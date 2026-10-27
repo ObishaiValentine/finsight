@@ -29,10 +29,7 @@ class GmailService:
     """Handle Gmail OAuth and email fetching."""
 
     def get_auth_url(self, user_id: str) -> str:
-        """
-        Generate Google OAuth URL for user to grant Gmail access.
-        Includes user_id in state so we can match the callback.
-        """
+        """Generate Google OAuth URL for user to grant Gmail access."""
         flow = Flow.from_client_config(
             {
                 "web": {
@@ -46,22 +43,30 @@ class GmailService:
             scopes=SCOPES,
         )
         flow.redirect_uri = settings.google_redirect_uri
-
+        
+        # Encode user_id to base64 to pass safely in the state parameter
+        safe_state = base64.urlsafe_b64encode(user_id.encode()).decode()
+        
         auth_url, _ = flow.authorization_url(
             access_type='offline',
             prompt='consent',
             include_granted_scopes='true',
-            state=user_id,
+            state=safe_state,
         )
-
         return auth_url
 
-    def handle_callback(self, code: str, user_id: str) -> Dict:
-        """
-        Exchange OAuth code for tokens, save to user record.
-        Returns user's Gmail email.
-        """
+    def handle_callback(self, code: str, state: str) -> Dict:
+        """Exchange OAuth code for tokens, save to user record."""
         try:
+            # Decode the base64 state back into the real user_id
+            try:
+                user_id = base64.urlsafe_b64decode(state.encode()).decode()
+            except Exception:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid state parameter",
+                )
+
             flow = Flow.from_client_config(
                 {
                     "web": {
@@ -78,11 +83,8 @@ class GmailService:
             flow.fetch_token(code=code)
 
             credentials = flow.credentials
-
-            # Get user's Gmail email address
             gmail_email = self._get_user_email(credentials)
 
-            # Save tokens to user record
             expiry_iso = None
             if credentials.expiry:
                 expiry_iso = credentials.expiry.isoformat()
@@ -102,6 +104,8 @@ class GmailService:
                 "gmail_email": gmail_email,
             }
 
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -153,10 +157,8 @@ class GmailService:
                 scopes=SCOPES,
             )
 
-            # Refresh if expired
             if credentials.expired and credentials.refresh_token:
                 credentials.refresh(Request())
-                # Save new token
                 supabase.table("users").update({
                     "gmail_access_token": credentials.token,
                     "gmail_token_expiry": (
@@ -172,11 +174,7 @@ class GmailService:
             return None
 
     def fetch_bank_alerts(self, user_id: str, max_results: int = 50) -> List[Dict]:
-        """
-        Fetch recent bank alert emails from Gmail.
-        Filters by known bank sender domains / keywords.
-        Returns list of {subject, sender, body, received_at}.
-        """
+        """Fetch recent bank alert emails from Gmail."""
         credentials = self._get_credentials(user_id)
         if not credentials:
             raise HTTPException(
@@ -187,7 +185,6 @@ class GmailService:
         try:
             service = build('gmail', 'v1', credentials=credentials)
 
-            # Query: filter by bank alert senders/keywords
             query = (
                 'from:(gtbank.com OR zenithbank.com OR accessbank.com OR '
                 'ubagroup.com OR firstbanknigeria.com OR '
@@ -254,10 +251,7 @@ class GmailService:
             return None
 
     def _get_message_body(self, payload: Dict) -> str:
-        """
-        Recursively extract plain text body from Gmail payload.
-        Prefers text/plain; strips HTML if only HTML available.
-        """
+        """Recursively extract plain text body from Gmail payload."""
         try:
             if 'parts' in payload:
                 for part in payload['parts']:

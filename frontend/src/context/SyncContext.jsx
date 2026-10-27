@@ -100,16 +100,19 @@ export function SyncProvider({ children }) {
     run();
   }, [isAuthenticated, refreshStatus]);
 
-  useEffect(() => {
+    useEffect(() => {
     const handleOAuthReturn = async () => {
       const params = new URLSearchParams(window.location.search);
       const gmailParam = params.get('gmail');
-      const emailParam = params.get('email');
 
       if (gmailParam === 'success') {
-        setIsConnected(true);
-        setGmailEmail(emailParam);
+        // Clean URL
         window.history.replaceState({}, '', window.location.pathname);
+        
+        // Fetch the fresh status from the backend to confirm it saved
+        await refreshStatus();
+        
+        // Kick off a sync
         setTimeout(() => syncNow(30, true), 500);
       } else if (gmailParam === 'error') {
         window.history.replaceState({}, '', window.location.pathname);
