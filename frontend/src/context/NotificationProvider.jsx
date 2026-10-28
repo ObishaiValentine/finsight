@@ -1,9 +1,25 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { NotificationContext } from './NotificationContext';
 
+const STORAGE_KEY = 'finsight-notifications';
+
 export function NotificationProvider({ children }) {
-  const [notifications, setNotifications] = useState([]);
+  // Initialize from localStorage
+  const [notifications, setNotifications] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   const [toasts, setToasts] = useState([]);
+
+  // Save to localStorage whenever notifications change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
+  }, [notifications]);
 
   const removeToast = useCallback((id) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));

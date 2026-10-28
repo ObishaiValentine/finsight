@@ -434,14 +434,11 @@ export default function Layout({ children, onGoHome }) {
               <div className="relative">
               <motion.button
                 onClick={() => setNotifOpen(true)}
-                // BELL ANIMATION LOGIC: Shake only if there are unread notifications and modal is closed
-                animate={unreadCount > 0 && !notifOpen ? {
-                  rotate: [0, -15, 15, -15, 15, 0],
-                  transition: { duration: 0.5, repeat: Infinity, repeatDelay: 3 }
-                } : { rotate: 0 }}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
-                className="relative text-secondary hover:text-primary transition-colors p-2"
+                className={`relative text-secondary hover:text-primary transition-colors p-2 ${
+                  unreadCount > 0 && !notifOpen ? 'animate-bell-ring' : ''
+                }`}
               >
                 <Bell size={20} />
                 {unreadCount > 0 && (
