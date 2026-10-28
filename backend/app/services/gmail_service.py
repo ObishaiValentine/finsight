@@ -89,7 +89,7 @@ class GmailService:
             if credentials.expiry:
                 expiry_iso = credentials.expiry.isoformat()
 
-            update_data = {
+                update_data = {
                 "gmail_connected": True,
                 "gmail_email": gmail_email,
                 "gmail_access_token": credentials.token,
@@ -97,7 +97,15 @@ class GmailService:
                 "gmail_token_expiry": expiry_iso,
             }
 
-            supabase.table("users").update(update_data).eq("id", user_id).execute()
+            # Check if the user actually exists before updating
+            response = supabase.table("users").update(update_data).eq("id", user_id).execute()
+            
+            if not response.data:
+                # If no data returned, the user ID was wrong or not found
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"User with ID {user_id} not found during Gmail update.",
+                )
 
             return {
                 "success": True,
