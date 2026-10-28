@@ -103,7 +103,7 @@ export function SyncProvider({ children }) {
   }, [isAuthenticated, refreshStatus]);
 
       useEffect(() => {
-    const handleOAuthReturn = async () => {
+      const handleOAuthReturn = async () => {
       const params = new URLSearchParams(window.location.search);
       const gmailParam = params.get('gmail');
       const errorMsg = params.get('msg'); // Get error message from backend

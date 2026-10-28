@@ -13,6 +13,7 @@ import { transactionService } from '../services/transactionService';
 import { SUPPORTED_BANKS } from '../utils/banks';
 import { useNotification } from '../hooks/useNotification';
 import NotificationDropdown from './NotificationDropdown';
+import ToastContainer from './ToastContainer';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
@@ -490,6 +491,7 @@ export default function Layout({ children, onGoHome }) {
         </div>
         <div className="h-[env(safe-area-inset-bottom)]" />
       </nav>
+      <ToastContainer />
     </div>
   );
 }
