@@ -12,7 +12,7 @@ import { useAuth } from '../hooks/useAuth';
 import { transactionService } from '../services/transactionService';
 import { SUPPORTED_BANKS } from '../utils/banks';
 import { useNotification } from '../hooks/useNotification';
-import NotificationDropdown from './NotificationDropdown';
+import NotificationModal from './NotificationModal';
 import ToastContainer from './ToastContainer';
 
 const navItems = [
@@ -433,20 +433,26 @@ export default function Layout({ children, onGoHome }) {
             <ThemeToggle />
               <div className="relative">
               <motion.button
-                onClick={() => setNotifOpen(!notifOpen)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="relative text-secondary hover:text-primary transition-colors p-1"
+                onClick={() => setNotifOpen(true)}
+                // BELL ANIMATION LOGIC: Shake only if there are unread notifications and modal is closed
+                animate={unreadCount > 0 && !notifOpen ? {
+                  rotate: [0, -15, 15, -15, 15, 0],
+                  transition: { duration: 0.5, repeat: Infinity, repeatDelay: 3 }
+                } : { rotate: 0 }}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                className="relative text-secondary hover:text-primary transition-colors p-2"
               >
                 <Bell size={20} />
                 {unreadCount > 0 && (
-                  <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-bold flex items-center justify-center rounded-full border-2 border-app">
+                  <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold flex items-center justify-center rounded-full border-2 border-app">
                     {unreadCount}
                   </span>
                 )}
               </motion.button>
 
-              <NotificationDropdown isOpen={notifOpen} onClose={() => setNotifOpen(false)} />
+              {/* The Centered Modal */}
+              <NotificationModal isOpen={notifOpen} onClose={() => setNotifOpen(false)} />
             </div>
           </div>
         </header>

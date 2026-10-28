@@ -65,6 +65,13 @@ export function SyncProvider({ children }) {
       setLastSyncTime(now);
       setLastResult(result);
       emitSyncComplete(result);
+      if (result && result.synced > 0) {
+        addNotification({
+          title: 'New Transactions Synced',
+          message: `We found and stored ${result.synced} new transaction${result.synced > 1 ? 's' : ''} from your bank alerts.`,
+          type: 'success',
+        });
+      }
       return result;
     } catch (err) {
       if (!silent) console.error('Sync failed:', err);
@@ -73,7 +80,7 @@ export function SyncProvider({ children }) {
       syncInProgressRef.current = false;
       if (!silent) setIsSyncing(false);
     }
-  }, [isAuthenticated, emitSyncComplete]);
+  }, [isAuthenticated, emitSyncComplete, addNotification]);
 
   const connect = useCallback(async () => {
     const { auth_url } = await gmailService.getAuthUrl();
