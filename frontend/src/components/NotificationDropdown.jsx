@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, AlertCircle, Info, BellOff } from 'lucide-react';
-import { useNotification } from '../context/NotificationProvider';
+import { useNotification } from '../hooks/useNotification';
 
 export default function NotificationDropdown({ isOpen, onClose }) {
   const { notifications, markAllAsRead, clearAll } = useNotification();
