@@ -53,7 +53,7 @@ export default function Dashboard({ onReady }) {
   const { theme } = useTheme();
   const { user } = useAuth();
   const { setActivePage } = useNavigation();
-  const { subscribe } = useSync();
+  const { subscribe, syncNow } = useSync();
   const isDark = theme === 'dark';
 
   const [stats, setStats] = useState(null);
@@ -85,7 +85,12 @@ export default function Dashboard({ onReady }) {
 
   useEffect(() => {
     const init = async () => {
+      // 1. Load existing data from the database first
       await fetchData(true);
+      
+      // 2. Trigger a silent background sync to fetch new emails from Gmail
+      // We pass 'true' for silent so it doesn't show the spinning loading icon
+      syncNow(20, true).catch(() => {});
     };
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -5,7 +5,6 @@ import { SyncContext } from './SyncContext';
 import { useNotification } from '../hooks/useNotification';
 
 const SYNC_COOLDOWN_MS = 100 * 1000;
-const AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
 export function SyncProvider({ children }) {
   const { isAuthenticated } = useAuth();
@@ -112,6 +111,12 @@ export function SyncProvider({ children }) {
         window.history.replaceState({}, '', window.location.pathname);
         await refreshStatus();
         setTimeout(() => syncNow(30, true), 500);
+          // ADD THIS SUCCESS NOTIFICATION
+        addNotification({
+          title: 'Gmail Connected',
+          message: 'Your Gmail account has been successfully linked and syncing started.',
+          type: 'success',
+        });
       } else if (gmailParam === 'error') {
         window.history.replaceState({}, '', window.location.pathname);
         
@@ -147,17 +152,6 @@ export function SyncProvider({ children }) {
     };
   }, [isAuthenticated, isConnected, syncNow]);
 
-  useEffect(() => {
-    if (!isAuthenticated || !isConnected) return;
-
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        syncNow(20, true);
-      }
-    }, AUTO_SYNC_INTERVAL_MS);
-
-    return () => clearInterval(interval);
-  }, [isAuthenticated, isConnected, syncNow]);
 
   return (
     <SyncContext.Provider
