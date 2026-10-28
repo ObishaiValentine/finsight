@@ -450,9 +450,6 @@ export default function Layout({ children, onGoHome }) {
                   </span>
                 )}
               </motion.button>
-
-              {/* The Centered Modal */}
-              <NotificationModal isOpen={notifOpen} onClose={() => setNotifOpen(false)} />
             </div>
           </div>
         </header>
@@ -498,6 +495,7 @@ export default function Layout({ children, onGoHome }) {
         <div className="h-[env(safe-area-inset-bottom)]" />
       </nav>
       <ToastContainer />
+         <NotificationModal isOpen={notifOpen} onClose={() => setNotifOpen(false)} />
     </div>
   );
 }
