@@ -8,7 +8,7 @@ const SYNC_COOLDOWN_MS = 100 * 1000;
 
 export function SyncProvider({ children }) {
   const { isAuthenticated } = useAuth();
-    const { addNotification } = useNotification();
+  const { addNotification } = useNotification();
 
   const [isConnected, setIsConnected] = useState(false);
   const [gmailEmail, setGmailEmail] = useState(null);
