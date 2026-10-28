@@ -2,12 +2,14 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { gmailService } from '../services/gmailService';
 import { useAuth } from '../hooks/useAuth';
 import { SyncContext } from './SyncContext';
+import { useNotification } from '../hooks/useNotification';
 
 const SYNC_COOLDOWN_MS = 100 * 1000;
 const AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
 export function SyncProvider({ children }) {
   const { isAuthenticated } = useAuth();
+    const { addNotification } = useNotification();
 
   const [isConnected, setIsConnected] = useState(false);
   const [gmailEmail, setGmailEmail] = useState(null);
@@ -100,22 +102,25 @@ export function SyncProvider({ children }) {
     run();
   }, [isAuthenticated, refreshStatus]);
 
-    useEffect(() => {
+      useEffect(() => {
     const handleOAuthReturn = async () => {
       const params = new URLSearchParams(window.location.search);
       const gmailParam = params.get('gmail');
+      const errorMsg = params.get('msg'); // Get error message from backend
 
       if (gmailParam === 'success') {
-        // Clean URL
         window.history.replaceState({}, '', window.location.pathname);
-        
-        // Fetch the fresh status from the backend to confirm it saved
         await refreshStatus();
-        
-        // Kick off a sync
         setTimeout(() => syncNow(30, true), 500);
       } else if (gmailParam === 'error') {
         window.history.replaceState({}, '', window.location.pathname);
+        
+        // Add the error to our new Notification System!
+        addNotification({
+          title: 'Gmail Connection Failed',
+          message: errorMsg || 'Failed to connect Gmail. Please try again.',
+          type: 'error',
+        });
       }
     };
     handleOAuthReturn();

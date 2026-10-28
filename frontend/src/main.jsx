@@ -7,6 +7,8 @@ import { AuthProvider } from './context/AuthProvider.jsx'
 import { NavigationProvider } from './context/NavigationProvider.jsx'
 import { SearchProvider } from './context/SearchProvider.jsx'
 import { SyncProvider } from './context/SyncContext.jsx'
+import { NotificationProvider } from './context/NotificationProvider.jsx';
+
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -22,4 +24,9 @@ createRoot(document.getElementById('root')).render(
       </AuthProvider>
     </ThemeProvider>
   </StrictMode>,
+   <SyncProvider>
+  <NotificationProvider>
+  <App />
+  </NotificationProvider>
+  </SyncProvider>
 )
