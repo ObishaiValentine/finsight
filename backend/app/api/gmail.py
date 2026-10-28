@@ -34,7 +34,8 @@ def oauth_callback(
         )
 
     try:
-        result = gmail_service.handle_callback(code=code, user_id=state)
+        # FIX: Pass 'state' instead of 'user_id' to match the updated service
+        result = gmail_service.handle_callback(code=code, state=state)
         return RedirectResponse(
             url=f"{frontend_url}/accounts?gmail=success&email={result['gmail_email']}",
             status_code=status.HTTP_302_FOUND,

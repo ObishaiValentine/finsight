@@ -1317,3 +1317,26 @@ Once Gmail is fully open to the public:
 - Budget Goals (Phase 2)
 - Multi-Account Gmail support
 - Custom Categories
+
+---
+
+## 42. SESSION LOG UPDATE
+
+### Session 017 — OAuth State Fix & Provider Planning 🟢
+- **OAuth State Encoding:** Google OAuth was failing for secondary accounts because the `state` parameter (which we use to pass the `user_id`) was breaking due to UUID characters. Fixed by Base64 encoding the `user_id` before passing it to Google, and decoding it in the `handle_callback` backend service.
+- **Endpoint Signature Fix:** Updated `gmail.py` endpoint to pass `state=state` instead of `user_id=state` to match the updated GmailService signature.
+- **Google Warning Screen:** Clarified that the "Google hasn't verified this app" yellow screen is normal for new apps requesting sensitive scopes (`gmail.readonly`). It requires a formal Google Security Audit to remove, but users can bypass it via "Advanced -> Go to FinSight".
+
+---
+
+## 43. FUTURE ROADMAP — PHASE 2 (Email Providers)
+
+### Current Limitation
+FinSight currently only supports **Gmail** and **Google Workspace** emails via the Gmail API. 
+
+### Phase 2 Plan: IMAP Integration
+To support users with Yahoo, Outlook, or custom domain emails (e.g., `@company.com`), we need to build an IMAP Integration.
+- **Tech Stack:** Python `imaplib` or `imap-tools`.
+- **User Flow:** User selects "Other Email Provider", enters their email and an App Password (since OAuth is not standardized across all providers).
+- **Backend:** Connect to `imap.yahoo.com`, `imap.outlook.com`, etc., fetch emails, and parse them using the same Hybrid parser.
+- **UI Change:** Add a note in the "Connect Email" modal: "Currently supporting Gmail & Google Workspace. IMAP support coming soon!"
