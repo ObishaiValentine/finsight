@@ -999,26 +999,22 @@ function formatFullDate(dateString) {
   if (isNaN(date.getTime())) return 'Unknown Date'; 
 
   const now = new Date();
-  // Force Nigeria Timezone to prevent 1-hour shifts
   const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' };
   const formattedTime = date.toLocaleTimeString('en-NG', timeOptions).toLowerCase();
 
-  // Hide the time if it's exactly midnight or 1am (UTC midnight)
-  const isMidnight = (date.getHours() === 0 || date.getHours() === 1 || date.getUTCHours() === 0) && date.getMinutes() === 0;
-
   if (date.toDateString() === now.toDateString()) {
-    return isMidnight ? 'Today' : `Today at ${formattedTime}`;
+    return `Today at ${formattedTime}`;
   }
   
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   if (date.toDateString() === yesterday.toDateString()) {
-    return isMidnight ? 'Yesterday' : `Yesterday at ${formattedTime}`;
+    return `Yesterday at ${formattedTime}`;
   }
 
   return date.toLocaleDateString('en-NG', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }) + (isMidnight ? '' : ` at ${formattedTime}`);
+  }) + ` at ${formattedTime}`;
 }

@@ -39,10 +39,9 @@ function formatRelativeDate(dateString) {
   if (isNaN(date.getTime())) return 'Unknown Date';
 
   const now = new Date();
-  const isMidnight = (date.getHours() === 0 || date.getHours() === 1 || date.getUTCHours() === 0) && date.getMinutes() === 0;
   
   if (date.toDateString() === now.toDateString()) {
-    return isMidnight ? 'Today' : `Today at ${date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit', timeZone: 'Africa/Lagos' }).toLowerCase()}`;
+    return `Today at ${date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit', timeZone: 'Africa/Lagos' }).toLowerCase()}`;
   }
 
   const diffMs = now - date;

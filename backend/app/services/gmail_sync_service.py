@@ -183,6 +183,48 @@ class GmailSyncService:
                         ).isoformat()
                     except Exception:
                         pass # If it fails, just stick to the original parsed date
+                        # --- BULLETPROOF TIMEZONE LOGIC ---
+            from datetime import datetime, timezone, timedelta
+            import email.utils
+
+            WAT = timezone(timedelta(hours=1)) # Nigeria Time
+            parsed_date_str = parsed["date"]
+            received_at = alert.get('received_at', '')
+            
+            final_date_obj = None
+
+            if parsed_date_str:
+                try:
+                    parsed_dt = datetime.fromisoformat(parsed_date_str)
+                    # If parser found a time (not midnight), assume it's WAT if naive
+                    if parsed_dt.hour != 0 or parsed_dt.minute != 0:
+                        if parsed_dt.tzinfo is None:
+                            parsed_dt = parsed_dt.replace(tzinfo=WAT)
+                        final_date_obj = parsed_dt
+                except Exception:
+                    pass
+
+            # If parser failed or found midnight, use the Gmail received timestamp
+            if not final_date_obj and received_at:
+                try:
+                    # Fix the " at " issue in the Gmail header string
+                    clean_received = received_at.replace(" at ", " ")
+                    email_dt = email.utils.parsedate_to_datetime(clean_received)
+                    
+                    if parsed_date_str:
+                        try:
+                            base_date = datetime.fromisoformat(parsed_date_str).date()
+                            final_date_obj = datetime.combine(base_date, email_dt.time(), tzinfo=WAT)
+                        except:
+                            final_date_obj = email_dt.astimezone(WAT)
+                    else:
+                        final_date_obj = email_dt.astimezone(WAT)
+                except Exception:
+                    pass
+
+            # Absolute fallback if everything fails
+            if not final_date_obj:
+                final_date_obj = datetime.now(WAT)
 
             # Prepare transaction
             transaction_data = {
@@ -192,7 +234,7 @@ class GmailSyncService:
                 "merchant": parsed.get("merchant"),
                 "account_number": parsed.get("account_number"),
                 "balance_after": parsed.get("balance"),
-                "transaction_date": final_date, # <--- USE THE FALLBACK DATE
+                "transaction_date": final_date_obj.isoformat(), # <--- USE THIS
                 "confidence": parsed.get("confidence", 0.0),
                 "category": category,
                 "bank_name": bank,
