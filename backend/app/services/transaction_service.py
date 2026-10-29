@@ -147,18 +147,13 @@ class TransactionService:
             return False
 
     def deduplicate_transactions(self, user_id: str) -> int:
-        """
-        Self-healing function: Checks all transactions for a user,
-        identifies exact duplicates based on raw_text, and deletes the extras.
-        Returns the number of deleted duplicates.
-        """
+        """Self-healing function: deletes exact duplicates."""
         try:
-            # Fetch all transactions for the user
             response = (
                 supabase.table("transactions")
                 .select("id, raw_text, created_at")
                 .eq("user_id", user_id)
-                .order("created_at", desc=False) # Keep the oldest ones
+                .order("created_at", desc=False)
                 .execute()
             )
             transactions = response.data or []
@@ -168,20 +163,14 @@ class TransactionService:
 
             for tx in transactions:
                 raw_text = tx.get("raw_text")
-                
-                # If raw_text is missing, skip deduplication for this row
                 if not raw_text:
                     continue
-                    
                 if raw_text in seen_raw_texts:
                     duplicate_ids.append(tx["id"])
                 else:
                     seen_raw_texts.add(raw_text)
 
-            # Delete the duplicates
             if duplicate_ids:
-                # Supabase allows deleting multiple rows by passing an "in" filter
-                # We delete them in chunks just in case there are hundreds
                 chunk_size = 50
                 for i in range(0, len(duplicate_ids), chunk_size):
                     chunk = duplicate_ids[i:i + chunk_size]
@@ -197,6 +186,7 @@ class TransactionService:
             return 0
 
     def reparse_existing_transactions(self, user_id: str) -> int:
+        """Force re-parse ALL existing transactions, including dates."""
         try:
             all_transactions = []
             limit = 1000
@@ -205,7 +195,7 @@ class TransactionService:
             while True:
                 response = (
                     supabase.table("transactions")
-                    .select("id, raw_text, merchant")
+                    .select("id, raw_text, merchant, created_at") # Added created_at
                     .eq("user_id", user_id)
                     .range(offset, offset + limit - 1)
                     .execute()
@@ -221,20 +211,40 @@ class TransactionService:
             for tx in all_transactions:
                 raw_text = tx.get("raw_text")
                 
-                # SKIP: If we don't have the actual email body, don't touch it.
                 if not raw_text or raw_text.startswith("gmail_id:"):
                     continue
 
                 parsed = self.parser.parse_to_dict(raw_text)
                 new_merchant = parsed.get("merchant")
+                new_date = parsed.get("date")
+                
+                update_data = {}
 
-                # Only update if the new merchant is valid
+                # 1. Update merchant
                 if new_merchant and new_merchant != "Unknown Merchant" and new_merchant != tx.get("merchant"):
-                    supabase.table("transactions").update({
-                        "merchant": new_merchant,
-                        "confidence": parsed.get("confidence", 0.5),
-                    }).eq("id", tx["id"]).execute()
-                    
+                    update_data["merchant"] = new_merchant
+                    update_data["confidence"] = parsed.get("confidence", tx.get("confidence"))
+
+                # 2. Update Date (Fixes the 1am bug)
+                if new_date:
+                    if "00:00:00" in str(new_date):
+                        created_at = tx.get("created_at")
+                        if created_at:
+                            try:
+                                db_time = datetime.fromisoformat(created_at.replace("Z", "+00:00")).astimezone(WAT_TIMEZONE)
+                                parsed_dt = datetime.fromisoformat(new_date)
+                                new_date = parsed_dt.replace(
+                                    hour=db_time.hour, 
+                                    minute=db_time.minute, 
+                                    second=db_time.second,
+                                    tzinfo=WAT_TIMEZONE
+                                ).isoformat()
+                            except Exception:
+                                pass
+                    update_data["transaction_date"] = new_date
+
+                if update_data:
+                    supabase.table("transactions").update(update_data).eq("id", tx["id"]).execute()
                     updated_count += 1
 
             return updated_count
@@ -259,7 +269,6 @@ class TransactionService:
             today_income = 0
             today_expenses = 0
             
-            # Get today's date in West Africa Time (Nigeria)
             now = datetime.now(WAT_TIMEZONE)
             today_date = now.date()
 
@@ -275,7 +284,6 @@ class TransactionService:
                 date_str = t.get("transaction_date")
                 if date_str:
                     try:
-                        # Convert transaction date to WAT and check if it's today
                         tx_date_str = date_str.replace("Z", "+00:00")
                         tx_date = datetime.fromisoformat(tx_date_str).astimezone(WAT_TIMEZONE).date()
                         
