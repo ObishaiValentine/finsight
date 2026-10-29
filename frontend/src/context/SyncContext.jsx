@@ -66,11 +66,28 @@ export function SyncProvider({ children }) {
       setLastResult(result);
       emitSyncComplete(result);
       if (result && result.synced > 0) {
-        addNotification({
-          title: 'New Transactions Synced',
-          message: `We found and stored ${result.synced} new transaction${result.synced > 1 ? 's' : ''} from your bank alerts.`,
-          type: 'success',
-        });
+        // Check if we have the transaction details
+        const txs = result.synced_transactions || [];
+        
+        if (txs.length === 1) {
+          // If exactly 1 transaction, show Carbon-style detail
+          const tx = txs[0];
+          const type = tx.transaction_type === 'credit' ? 'Credit' : 'Debit';
+          const amount = '₦' + Number(tx.amount).toLocaleString('en-NG');
+          
+          addNotification({
+            title: `Transaction Confirmed`,
+            message: `Your ${type} transaction of ${amount} at ${tx.bank_name} was confirmed. ${tx.merchant ? `Merchant: ${tx.merchant}` : ''}`,
+            type: 'success',
+          });
+        } else {
+          // If multiple transactions, show a summary
+          addNotification({
+            title: 'Transactions Synced',
+            message: `We successfully parsed and stored ${result.synced} new transactions from your bank alerts.`,
+            type: 'success',
+          });
+        }
       }
       return result;
     } catch (err) {

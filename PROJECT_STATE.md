@@ -1340,3 +1340,36 @@ To support users with Yahoo, Outlook, or custom domain emails (e.g., `@company.c
 - **User Flow:** User selects "Other Email Provider", enters their email and an App Password (since OAuth is not standardized across all providers).
 - **Backend:** Connect to `imap.yahoo.com`, `imap.outlook.com`, etc., fetch emails, and parse them using the same Hybrid parser.
 - **UI Change:** Add a note in the "Connect Email" modal: "Currently supporting Gmail & Google Workspace. IMAP support coming soon!"
+
+---
+
+## 44. SESSION LOG UPDATE
+
+### Session 018 — Premium Notification System & OAuth Fixes 🟢
+- **Google OAuth Scope Fix:** Fixed the `Scope has changed` error by adding `os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'` to `gmail_service.py`. Gmail now connects successfully for secondary accounts.
+- **OAuth State Encoding:** Encoded the `user_id` in Base64 for the OAuth `state` parameter to prevent Google from corrupting the UUID characters during the redirect.
+- **Global Notification System:** 
+  - Built a `NotificationContext` that persists alerts to `localStorage` (so they don't disappear on refresh).
+  - Added an animated Bell icon (using CSS keyframes) that rings when there are unread alerts.
+  - Built a centered, premium "Mailbox" modal for reading notifications, styled like the Transaction Detail modal.
+  - Added floating Toast popups (bottom right) for real-time alerts.
+- **Smart Sync Notifications:** 
+  - The backend now returns the `synced_transactions` array upon sync.
+  - The frontend uses this to generate detailed, Carbon-style notifications (e.g., "Your Credit transaction of ₦1,000 at UBA was confirmed. Merchant: FAVOUR").
+  - Triggered on Manual Sync, Dashboard Bootup, and Page-to-Page visibility changes.
+- **Auto-Sync Adjustments:** Removed the aggressive background `setInterval` auto-sync (to prevent Google API bans). Kept the silent sync on Dashboard mount and page visibility changes.
+
+---
+
+## 45. NEXT SESSION INSTRUCTIONS
+
+### The Immediate Next Tasks (Phase 1)
+The core data engine (Parser + Gmail) and the UI/UX (Notifications) are now highly polished. 
+
+1. **Mobile UI Polish (QA Sweep):** 
+   - Verify the sidebar closes instantly on mobile.
+   - Ensure the new Notification Modal fits perfectly on mobile screens (no overflow).
+2. **Onboarding Tour (Deferred):** Build a step-by-step tutorial for first-time users. (Can wait until we add a few more features).
+3. **Phase 2 / Monetization Prep:**
+   - Budget Goals (Allow users to set monthly limits per category).
+   - Multi-Account Gmail Support (Allow users to connect 2+ Gmails).

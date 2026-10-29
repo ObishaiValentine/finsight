@@ -106,6 +106,7 @@ class GmailSyncService:
         skipped = 0
         failed = 0
         errors = []
+        synced_transactions = []
 
         # Step 2: Process each alert
         for alert in alerts:
@@ -178,8 +179,11 @@ class GmailSyncService:
             
             # Save
             try:
-                supabase.table("transactions").insert(transaction_data).execute()
+                response = supabase.table("transactions").insert(transaction_data).execute()
                 synced += 1
+                # Save the inserted row to send back to the frontend
+                if response.data:
+                    synced_transactions.append(response.data[0])
             except Exception as e:
                 failed += 1
                 errors.append(f"Save error: {str(e)[:100]}")
@@ -199,6 +203,7 @@ class GmailSyncService:
             "skipped_duplicates": skipped,
             "failed": failed,
             "errors": errors[:10],
+            "synced_transactions": synced_transactions,
         }
 
 # Singleton

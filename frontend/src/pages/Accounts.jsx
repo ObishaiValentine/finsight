@@ -28,6 +28,7 @@ import { accountService } from '../services/accountService';
 import BankLogo from '../components/BankLogo';
 import { SUPPORTED_BANKS } from '../utils/banks';
 import { useSync } from '../hooks/useSync';
+import { useNotification } from '../hooks/useNotification';
 
 const SORT_OPTIONS = [
   { value: 'date_desc', label: 'Newest first' },
@@ -42,6 +43,7 @@ export default function Accounts({ onReady }) {
   const [totalBalance, setTotalBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { addNotification } = useNotification();
 
   const [showArchived, setShowArchived] = useState(false);
   const [archivedAccounts, setArchivedAccounts] = useState([]);
@@ -172,10 +174,22 @@ export default function Accounts({ onReady }) {
     setSyncResult(null);
     setGmailError('');
     const result = await syncNow(50, false);
+    
     if (result?.error) {
       setGmailError(result.error);
+      addNotification({
+        title: 'Sync Failed',
+        message: result.error,
+        type: 'error',
+      });
+    } else if (result && result.synced > 0) {
+      // ADD THIS SUCCESS NOTIFICATION
+      addNotification({
+        title: 'Transactions Synced',
+        message: `Successfully fetched and stored ${result.synced} new transactions.`,
+        type: 'success',
+      });
     }
-    // Success message handled by the subscribe effect above
   };
 
   const handleDisconnectGmail = async () => {
