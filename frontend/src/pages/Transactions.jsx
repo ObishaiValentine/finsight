@@ -993,18 +993,18 @@ function formatAmount(amount) {
 function formatFullDate(dateString) {
   if (!dateString) return '—';
   
-  // Strip existing am/pm to prevent double formatting
   let cleanStr = String(dateString).replace(/\s*(am|pm|AM|PM)/gi, '').trim();
   const date = new Date(cleanStr);
   
   if (isNaN(date.getTime())) return 'Unknown Date'; 
 
   const now = new Date();
-  const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
+  // Force Nigeria Timezone to prevent 1-hour shifts
+  const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' };
   const formattedTime = date.toLocaleTimeString('en-NG', timeOptions).toLowerCase();
 
-  // Check if the time is exactly midnight (00:00:00). If so, don't show the time.
-  const isMidnight = date.getHours() === 0 && date.getMinutes() === 0;
+  // Hide the time if it's exactly midnight or 1am (UTC midnight)
+  const isMidnight = (date.getHours() === 0 || date.getHours() === 1 || date.getUTCHours() === 0) && date.getMinutes() === 0;
 
   if (date.toDateString() === now.toDateString()) {
     return isMidnight ? 'Today' : `Today at ${formattedTime}`;

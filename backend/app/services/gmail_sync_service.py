@@ -178,7 +178,8 @@ class GmailSyncService:
                         final_date = parsed_dt.replace(
                             hour=email_dt.hour, 
                             minute=email_dt.minute, 
-                            second=email_dt.second
+                            second=email_dt.second,
+                            tzinfo=email_dt.tzinfo
                         ).isoformat()
                     except Exception:
                         pass # If it fails, just stick to the original parsed date
