@@ -66,12 +66,10 @@ export function SyncProvider({ children }) {
       setLastResult(result);
       emitSyncComplete(result);
       if (result && result.synced > 0) {
-        // Check if we have the transaction details
         const txs = result.synced_transactions || [];
         
-        if (txs.length === 1) {
-          // If exactly 1 transaction, show Carbon-style detail
-          const tx = txs[0];
+        // Show detailed notifications for up to 3 transactions
+        txs.slice(0, 3).forEach(tx => {
           const type = tx.transaction_type === 'credit' ? 'Credit' : 'Debit';
           const amount = '₦' + Number(tx.amount).toLocaleString('en-NG');
           
@@ -80,12 +78,14 @@ export function SyncProvider({ children }) {
             message: `Your ${type} transaction of ${amount} at ${tx.bank_name} was confirmed. ${tx.merchant ? `Merchant: ${tx.merchant}` : ''}`,
             type: 'success',
           });
-        } else {
-          // If multiple transactions, show a summary
+        });
+
+        // If more than 3, add a summary for the rest
+        if (txs.length > 3) {
           addNotification({
-            title: 'Transactions Synced',
-            message: `We successfully parsed and stored ${result.synced} new transactions from your bank alerts.`,
-            type: 'success',
+            title: 'More Transactions Synced',
+            message: `We also successfully stored ${txs.length - 3} additional transactions from your alerts.`,
+            type: 'info',
           });
         }
       }

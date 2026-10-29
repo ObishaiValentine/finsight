@@ -1,5 +1,6 @@
 """Gmail sync service — fetch alerts, parse, and save to transactions."""
 
+import datetime
 from typing import Dict
 from fastapi import HTTPException
 
@@ -161,6 +162,27 @@ class GmailSyncService:
                 transaction_type=parsed.get('transaction_type'),
             )
 
+             # --- TIME FALLBACK LOGIC ---
+            final_date = parsed["date"]
+            
+            # If the parser found a date but the time is exactly 00:00:00, use the email's received time
+            if final_date and "00:00:00" in str(final_date):
+                received_at = alert.get('received_at', '')
+                if received_at:
+                    try:
+                        # Parse the email header date (e.g., "Fri, 16 Oct 2026 10:54:00 +0000")
+                        from email.utils import parsedate_to_datetime
+                        email_dt = parsedate_to_datetime(received_at)
+                        # Extract just the date from the parsed string, and the time from the email
+                        parsed_dt = datetime.fromisoformat(final_date)
+                        final_date = parsed_dt.replace(
+                            hour=email_dt.hour, 
+                            minute=email_dt.minute, 
+                            second=email_dt.second
+                        ).isoformat()
+                    except Exception:
+                        pass # If it fails, just stick to the original parsed date
+
             # Prepare transaction
             transaction_data = {
                 "user_id": user_id,
@@ -169,11 +191,10 @@ class GmailSyncService:
                 "merchant": parsed.get("merchant"),
                 "account_number": parsed.get("account_number"),
                 "balance_after": parsed.get("balance"),
-                "transaction_date": parsed["date"],
+                "transaction_date": final_date, # <--- USE THE FALLBACK DATE
                 "confidence": parsed.get("confidence", 0.0),
                 "category": category,
                 "bank_name": bank,
-                # Save the actual email body! We prefix it with the ID for deduplication.
                 "raw_text": f"gmail_id:{gmail_id}\n\n{body}",
             }
             
