@@ -11,7 +11,6 @@ import { useSync } from '../hooks/useSync';
 import { transactionService } from '../services/transactionService';
 import AuroraBackground from '../components/AuroraBackground';
 import ConnectEmailButton from '../components/ConnectEmailButton';
-import { useNotification } from '../hooks/useNotification';
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -61,7 +60,6 @@ export default function Dashboard({ onReady }) {
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const { addNotification } = useNotification();
 
   const greeting = getGreeting();
   const firstName = getFirstName(user);
@@ -88,16 +86,8 @@ export default function Dashboard({ onReady }) {
   useEffect(() => {
     const init = async () => {
       await fetchData(true);
-      // Trigger sync and catch the result to notify the user
-      const result = await syncNow(20, true).catch(() => null);
-      
-      if (result && result.synced > 0) {
-        addNotification({
-          title: 'Auto-Sync Complete',
-          message: `We found ${result.synced} new transactions in your email.`,
-          type: 'success',
-        });
-      }
+      // Just trigger the sync. SyncContext will handle the notifications!
+      await syncNow(20, true).catch(() => null);
     };
     init();
   // eslint-disable-next-line react-hooks/exhaustive-deps

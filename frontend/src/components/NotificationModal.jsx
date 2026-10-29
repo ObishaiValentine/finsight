@@ -54,7 +54,7 @@ export default function NotificationModal({ isOpen, onClose }) {
             </div>
 
             {/* Scrollable List */}
-            <div className="flex-1 overflow-y-auto divide-y divide-app">
+            <div className="flex-1 overflow-y-auto divide-y divide-[#1f1f2e]/50 hide-scrollbar">
               {notifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-muted">
                   <BellOff size={40} className="mb-4 opacity-30" />
