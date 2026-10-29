@@ -32,12 +32,16 @@ function formatAmount(amount) {
 
 function formatRelativeDate(dateString) {
   if (!dateString) return '—';
-  const date = new Date(dateString);
+  
+  let cleanStr = String(dateString).replace(/\s*(am|pm|AM|PM)/gi, '').trim();
+  const date = new Date(cleanStr);
+  
+  if (isNaN(date.getTime())) return 'Unknown Date';
+
   const now = new Date();
   
-  // Check if it's today
   if (date.toDateString() === now.toDateString()) {
-    return `Today at ${date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()}`;
+    return `Today at ${date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' }).toLowerCase()}`;
   }
 
   const diffMs = now - date;

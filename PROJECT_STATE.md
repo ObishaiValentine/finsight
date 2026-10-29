@@ -1373,3 +1373,29 @@ The core data engine (Parser + Gmail) and the UI/UX (Notifications) are now high
 3. **Phase 2 / Monetization Prep:**
    - Budget Goals (Allow users to set monthly limits per category).
    - Multi-Account Gmail Support (Allow users to connect 2+ Gmails).
+
+---
+
+## 46. SESSION LOG UPDATE
+
+### Session 019 — Advanced Parser & Premium Notifications 🟢
+- **Time Fallback Implementation:** Updated `gmail_sync_service.py` to extract the email `received_at` timestamp from the Gmail header if the bank email body is missing a time (common with Carbon alerts). This fixes the "Today at 00:00" bug.
+- **Smart Multi-Notifications:** Updated `SyncContext.jsx` to generate individual detailed notifications for up to 3 transactions at a time (Credit/Debit, Amount, Bank, Merchant). If more than 3 sync, it sends a summary for the rest to avoid spamming the user.
+- **Gmail OAuth Scope Fix:** Successfully bypassed Google's "Scope has changed" error by setting `OAUTHLIB_RELAX_TOKEN_SCOPE`.
+- **Premium Notification UI:** Built a Carbon-style notification modal (soft icon circles, subtle dividers, hidden scrollbars) and an animated CSS bell icon.
+- **Known Limitation / Phase 2 Roadmap:** 
+  - Notifications currently use `localStorage` (device-specific). For cross-device sync, they must be moved to a Supabase table.
+  - The parser needs a "Metadata-Aware Pipeline" (Parsing Email Subject lines, using Gmail API timestamps, and LLM fallbacks) to handle 100% of foreign/microfinance banks perfectly.
+
+---
+
+## 47. NEXT SESSION INSTRUCTIONS
+
+### Where We Left Off
+We just finished implementing the Gmail timestamp fallback and the multi-transaction notifications. The code is ready to be tested once the Render backend and Vercel frontend finish deploying.
+
+### The Immediate Next Tasks (Phase 1)
+1. **Test the New Parser:** Sync a Carbon alert and verify the time is now accurate and the notification generates correctly.
+2. **Cross-Device Sync Decision:** Decide if we want to build a `notifications` table in Supabase to sync notifications across mobile and desktop.
+3. **Mobile QA:** Ensure the new Notification modal fits perfectly on mobile screens.
+4. **Onboarding Tour:** Build the step-by-step tutorial for first-time users (Phase 1 final task).

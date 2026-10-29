@@ -993,6 +993,7 @@ function formatAmount(amount) {
 function formatFullDate(dateString) {
   if (!dateString) return '—';
   
+  // Strip existing am/pm to prevent double formatting
   let cleanStr = String(dateString).replace(/\s*(am|pm|AM|PM)/gi, '').trim();
   const date = new Date(cleanStr);
   
@@ -1002,8 +1003,8 @@ function formatFullDate(dateString) {
   const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
   const formattedTime = date.toLocaleTimeString('en-NG', timeOptions).toLowerCase();
 
-  // Check if time is 1:00 am or 00:00 (meaning the email didn't have a time)
-  const isMidnight = (date.getHours() === 0 || date.getHours() === 1) && date.getMinutes() === 0;
+  // Check if the time is exactly midnight (00:00:00). If so, don't show the time.
+  const isMidnight = date.getHours() === 0 && date.getMinutes() === 0;
 
   if (date.toDateString() === now.toDateString()) {
     return isMidnight ? 'Today' : `Today at ${formattedTime}`;
