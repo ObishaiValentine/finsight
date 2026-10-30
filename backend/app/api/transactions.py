@@ -17,9 +17,15 @@ router = APIRouter(prefix="/transactions", tags=["Transactions"])
 from pydantic import BaseModel
 from typing import Optional
 
+from datetime import datetime
+
 class TransactionUpdate(BaseModel):
     category: Optional[str] = None
-
+    amount: Optional[float] = None
+    transaction_type: Optional[str] = None
+    merchant: Optional[str] = None
+    transaction_date: Optional[datetime] = None
+    balance_after: Optional[float] = None
 
 @router.patch("/{transaction_id}")
 def update_transaction(
@@ -27,15 +33,17 @@ def update_transaction(
     payload: TransactionUpdate,
     current_user: dict = Depends(get_current_user),
 ):
-    """Update transaction fields (currently category only)."""
+    """Update transaction fields."""
     from app.core.supabase_client import supabase
 
-    update_data = {}
-    if payload.category is not None:
-        update_data["category"] = payload.category
+    update_data = payload.model_dump(exclude_unset=True)
 
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
+
+    # If transaction_date is provided, convert to ISO string
+    if "transaction_date" in update_data and update_data["transaction_date"]:
+        update_data["transaction_date"] = update_data["transaction_date"].isoformat()
 
     # Ensure the transaction belongs to the current user
     response = (

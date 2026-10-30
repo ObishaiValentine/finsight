@@ -15,7 +15,6 @@ import {
   Check,
   EyeOff,
   Eye,
-  AlertCircle,
   Tag,
   Calendar,
   Building2,
@@ -23,6 +22,8 @@ import {
   Hash,
   Sparkles,
   RefreshCw,
+  Pencil,
+  Save
 } from 'lucide-react';
 import { useSearch } from '../hooks/useSearch';
 import { useSync } from '../hooks/useSync';
@@ -85,13 +86,19 @@ export default function Transactions({ onReady }) {
 
   // Detail modal
   const [detailTx, setDetailTx] = useState(null);
+  
+  // Edit Mode States
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    amount: '',
+    transaction_type: 'debit',
+    merchant: '',
+    transaction_date: '',
+    balance_after: '',
+    category: ''
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  // Edit category
-  const [editingCategory, setEditingCategory] = useState(false);
-  const [newCategory, setNewCategory] = useState('');
-  const [updatingCategory, setUpdatingCategory] = useState(false);
-  const [categoryError, setCategoryError] = useState('');
 
   // Delete
   const [deleteTx, setDeleteTx] = useState(null);
@@ -180,17 +187,17 @@ export default function Transactions({ onReady }) {
 
   const handleCopyDetails = async (tx) => {
     const text = `
-Transaction Details
-====================
-Merchant: ${tx.merchant || 'N/A'}
-Bank: ${tx.bank_name || 'N/A'}
-Type: ${tx.transaction_type?.toUpperCase() || 'N/A'}
-Amount: ${formatAmount(tx.amount)}
-Date: ${formatFullDate(tx.transaction_date)}
-Account: ${tx.account_number || 'N/A'}
-Category: ${tx.category || 'Uncategorized'}
-Balance After: ${formatAmount(tx.balance_after)}
-Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
+    Transaction Details
+    ====================
+    Merchant: ${tx.merchant || 'N/A'}
+    Bank: ${tx.bank_name || 'N/A'}
+    Type: ${tx.transaction_type?.toUpperCase() || 'N/A'}
+    Amount: ${formatAmount(tx.amount)}
+    Date: ${formatFullDate(tx.transaction_date)}
+    Account: ${tx.account_number || 'N/A'}
+    Category: ${tx.category || 'Uncategorized'}
+    Balance After: ${formatAmount(tx.balance_after)}
+    Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
     `.trim();
 
     try {
@@ -233,38 +240,39 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
     }
   };
 
-  const handleSaveCategory = async () => {
-    if (!detailTx || !newCategory) return;
-    setUpdatingCategory(true);
-    setCategoryError('');
-
+  const handleSaveEdit = async () => {
+    setSavingEdit(true);
     try {
-      const updated = await transactionService.updateCategory(
-        detailTx.id,
-        newCategory
-      );
-      // Update local state
-      setTransactions((prev) =>
-        prev.map((tx) =>
-          tx.id === detailTx.id ? { ...tx, category: updated.category || newCategory } : tx
-        )
-      );
-      setDetailTx({ ...detailTx, category: updated.category || newCategory });
-      setEditingCategory(false);
-      broadcastRefresh();
+      const payload = {
+        amount: parseFloat(editForm.amount),
+        transaction_type: editForm.transaction_type,
+        merchant: editForm.merchant,
+        balance_after: editForm.balance_after ? parseFloat(editForm.balance_after) : null,
+        category: editForm.category,
+      };
+      
+      if (editForm.transaction_date) {
+        payload.transaction_date = new Date(editForm.transaction_date).toISOString();
+      }
+
+      const updated = await transactionService.updateTransaction(detailTx.id, payload);
+      
+      // Update local state so UI reflects changes immediately
+      setTransactions((prev) => prev.map(tx => tx.id === detailTx.id ? { ...tx, ...updated } : tx));
+      setDetailTx({ ...detailTx, ...updated });
+      setIsEditing(false);
+      broadcastRefresh(); // Update Dashboard stats
     } catch (err) {
-      setCategoryError(err.message || 'Failed to update category');
+      alert(err.message || 'Failed to update transaction');
     } finally {
-      setUpdatingCategory(false);
+      setSavingEdit(false);
     }
   };
 
   const openDetail = (tx) => {
     setDetailTx(tx);
-    setEditingCategory(false);
-    setNewCategory(tx.category || 'Uncategorized');
-    setCategoryError('');
     setCopied(false);
+    setIsEditing(false); // Reset edit mode
   };
 
   // ============ HELPERS ============
@@ -275,7 +283,6 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
     setReparsing(true);
     try {
       const result = await transactionService.reparseTransactions();
-      // Show a simple alert, or you can build a custom toast notification later
       alert(result.message || 'Transactions re-parsed successfully!');
       await fetchTransactions(false);
       broadcastRefresh();
@@ -693,202 +700,144 @@ Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
                         <ArrowUpRight size={22} className="text-white" />
                       )}
                     </div>
-                    <button
-                      onClick={() => setDetailTx(null)}
-                      className="text-muted hover:text-primary transition-colors"
-                    >
-                      <X size={18} />
-                    </button>
+                    
+                    <div className="flex items-center gap-2">
+                      {!isEditing && (
+                        <button
+                          onClick={() => {
+                            setEditForm({
+                              amount: detailTx.amount,
+                              transaction_type: detailTx.transaction_type,
+                              merchant: detailTx.merchant || '',
+                              transaction_date: detailTx.transaction_date ? new Date(detailTx.transaction_date).toISOString().slice(0, 16) : '',
+                              balance_after: detailTx.balance_after || '',
+                              category: detailTx.category || 'Uncategorized',
+                            });
+                            setIsEditing(true);
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-500 text-xs font-semibold hover:bg-blue-500/20 transition-colors"
+                        >
+                          <Pencil size={12} /> Edit
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setDetailTx(null)}
+                        className="text-muted hover:text-primary transition-colors bg-elevated p-2 rounded-lg"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
                   </div>
 
-                  <p
-                    className={`text-3xl font-bold mb-1 ${
-                      detailTx.transaction_type === 'credit'
-                        ? 'text-green-500'
-                        : 'text-red-500'
-                    }`}
-                  >
-                    {detailTx.transaction_type === 'credit' ? '+' : '-'}
-                    {formatAmount(detailTx.amount)}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {formatFullDate(detailTx.transaction_date)}
-                  </p>
+                  {isEditing ? (
+                    <div className="space-y-3 mt-4">
+                       <div>
+                         <label className="text-[10px] text-muted uppercase tracking-wider font-semibold mb-1 block">Amount</label>
+                         <input type="number" value={editForm.amount} onChange={(e) => setEditForm({...editForm, amount: e.target.value})} className="w-full bg-elevated border border-app rounded-lg px-3 py-2 text-sm text-primary focus:border-blue-500 outline-none" />
+                       </div>
+                       <div className="grid grid-cols-2 gap-3">
+                         <div>
+                           <label className="text-[10px] text-muted uppercase tracking-wider font-semibold mb-1 block">Type</label>
+                           <select value={editForm.transaction_type} onChange={(e) => setEditForm({...editForm, transaction_type: e.target.value})} className="w-full bg-elevated border border-app rounded-lg px-3 py-2 text-sm text-primary focus:border-blue-500 outline-none">
+                             <option value="credit">Credit</option>
+                             <option value="debit">Debit</option>
+                           </select>
+                         </div>
+                         <div>
+                           <label className="text-[10px] text-muted uppercase tracking-wider font-semibold mb-1 block">Date</label>
+                           <input type="datetime-local" value={editForm.transaction_date} onChange={(e) => setEditForm({...editForm, transaction_date: e.target.value})} className="w-full bg-elevated border border-app rounded-lg px-3 py-2 text-sm text-primary focus:border-blue-500 outline-none" />
+                         </div>
+                       </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p
+                        className={`text-3xl font-bold mb-1 ${
+                          detailTx.transaction_type === 'credit'
+                            ? 'text-green-500'
+                            : 'text-red-500'
+                        }`}
+                      >
+                        {detailTx.transaction_type === 'credit' ? '+' : '-'}
+                        {formatAmount(detailTx.amount)}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {formatFullDate(detailTx.transaction_date)}
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
 
               {/* Scrollable body */}
-              <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-3">
-                <DetailRow
-                  icon={Building2}
-                  label="Merchant"
-                  value={detailTx.merchant || 'Unknown'}
-                />
-                <DetailRow
-                  icon={Wallet}
-                  label="Bank"
-                  value={detailTx.bank_name || 'Unknown'}
-                />
-                {detailTx.account_number && (
-                  <DetailRow
-                    icon={Hash}
-                    label="Account"
-                    value={`•••• ${String(detailTx.account_number).slice(-4)}`}
-                    mono
-                  />
-                )}
-                <DetailRow
-                  icon={Calendar}
-                  label="Type"
-                  value={detailTx.transaction_type?.toUpperCase() || '—'}
-                  capitalize
-                />
-                {detailTx.balance_after !== null && detailTx.balance_after !== undefined && (
-                  <DetailRow
-                    icon={Wallet}
-                    label="Balance After"
-                    value={formatAmount(detailTx.balance_after)}
-                  />
-                )}
-                {detailTx.confidence !== null && detailTx.confidence !== undefined && (
-                  <DetailRow
-                    icon={Sparkles}
-                    label="Parser Confidence"
-                    value={`${(detailTx.confidence * 100).toFixed(1)}%`}
-                    valueColor={
-                      detailTx.confidence >= 0.9
-                        ? 'text-green-500'
-                        : detailTx.confidence >= 0.7
-                        ? 'text-yellow-500'
-                        : 'text-red-500'
-                    }
-                  />
-                )}
-
-                {/* Category — editable */}
-                <div className="flex items-center justify-between py-3 border-b border-app">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0">
-                      <Tag size={14} className="text-purple-500" />
+              <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-3 hide-scrollbar">
+                {isEditing ? (
+                  <div className="space-y-3 pt-2">
+                    <div>
+                      <label className="text-[10px] text-muted uppercase tracking-wider font-semibold mb-1 block">Merchant</label>
+                      <input type="text" value={editForm.merchant} onChange={(e) => setEditForm({...editForm, merchant: e.target.value})} className="w-full bg-elevated border border-app rounded-lg px-3 py-2 text-sm text-primary focus:border-blue-500 outline-none" />
                     </div>
-                    <span className="text-xs text-muted">Category</span>
-                  </div>
-                  {!editingCategory ? (
-                    <button
-                      onClick={() => {
-                        setEditingCategory(true);
-                        setNewCategory(detailTx.category || 'Uncategorized');
-                      }}
-                      className="text-xs font-medium text-primary px-3 py-1.5 rounded-lg bg-elevated border border-app hover:border-blue-500 transition-colors"
-                    >
-                      {detailTx.category || 'Uncategorized'}
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={newCategory}
-                        onChange={(e) => setNewCategory(e.target.value)}
-                        className="bg-elevated border border-app rounded-lg px-3 py-1.5 text-xs text-primary focus:outline-none focus:border-blue-500 cursor-pointer"
-                      >
-                        {CATEGORIES.map((cat) => (
-                          <option key={cat} value={cat}>
-                            {cat}
-                          </option>
-                        ))}
+                    <div>
+                      <label className="text-[10px] text-muted uppercase tracking-wider font-semibold mb-1 block">Category</label>
+                      <select value={editForm.category} onChange={(e) => setEditForm({...editForm, category: e.target.value})} className="w-full bg-elevated border border-app rounded-lg px-3 py-2 text-sm text-primary focus:border-blue-500 outline-none">
+                        {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                       </select>
-                      <button
-                        onClick={handleSaveCategory}
-                        disabled={updatingCategory}
-                        className="p-1.5 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-60"
-                      >
-                        {updatingCategory ? (
-                          <Loader2 size={12} className="animate-spin" />
-                        ) : (
-                          <Check size={12} />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditingCategory(false);
-                          setCategoryError('');
-                        }}
-                        className="p-1.5 rounded-lg bg-elevated border border-app text-secondary hover:text-primary transition-colors"
-                      >
-                        <X size={12} />
-                      </button>
                     </div>
-                  )}
-                </div>
-
-                {categoryError && (
-                  <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/20 flex items-start gap-2">
-                    <AlertCircle size={12} className="text-red-500 shrink-0 mt-0.5" />
-                    <p className="text-[10px] text-red-500">{categoryError}</p>
-                  </div>
-                )}
-
-                {/* Raw text */}
-                {detailTx.raw_text && !detailTx.raw_text.startsWith('gmail_id:') && (
-                  <div className="mt-2">
-                    <p className="text-[10px] uppercase tracking-wider font-semibold text-muted mb-2">
-                      Original Alert
-                    </p>
-                    <div className="p-3 rounded-xl bg-elevated border border-app max-h-40 overflow-y-auto">
-                      <pre className="text-[11px] text-secondary whitespace-pre-wrap font-mono leading-relaxed">
-                        {detailTx.raw_text}
-                      </pre>
+                    <div>
+                      <label className="text-[10px] text-muted uppercase tracking-wider font-semibold mb-1 block">Balance After</label>
+                      <input type="number" value={editForm.balance_after} onChange={(e) => setEditForm({...editForm, balance_after: e.target.value})} className="w-full bg-elevated border border-app rounded-lg px-3 py-2 text-sm text-primary focus:border-blue-500 outline-none" />
                     </div>
                   </div>
+                ) : (
+                  <>
+                    <DetailRow icon={Building2} label="Merchant" value={detailTx.merchant || 'Unknown'} />
+                    <DetailRow icon={Wallet} label="Bank" value={detailTx.bank_name || 'Unknown'} />
+                    {detailTx.account_number && (
+                      <DetailRow icon={Hash} label="Account" value={`•••• ${String(detailTx.account_number).slice(-4)}`} mono />
+                    )}
+                    <DetailRow icon={Calendar} label="Type" value={detailTx.transaction_type?.toUpperCase() || '—'} capitalize />
+                    {detailTx.balance_after !== null && detailTx.balance_after !== undefined && (
+                      <DetailRow icon={Wallet} label="Balance After" value={formatAmount(detailTx.balance_after)} />
+                    )}
+                    {detailTx.confidence !== null && detailTx.confidence !== undefined && (
+                      <DetailRow icon={Sparkles} label="Parser Confidence" value={`${(detailTx.confidence * 100).toFixed(1)}%`} valueColor={ detailTx.confidence >= 0.9 ? 'text-green-500' : detailTx.confidence >= 0.7 ? 'text-yellow-500' : 'text-red-500' } />
+                    )}
+                    <DetailRow icon={Tag} label="Category" value={detailTx.category || 'Uncategorized'} />
+                  </>
                 )}
               </div>
 
               {/* Actions */}
-              <div className="flex gap-2 p-4 border-t border-app shrink-0 flex-wrap">
-                <button
-                  onClick={() => handleCopyDetails(detailTx)}
-                  className="flex-1 min-w-25 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-elevated border border-app text-sm font-medium text-primary hover:border-blue-500 transition-colors"
-                >
-                  {copied ? (
-                    <>
-                      <Check size={14} className="text-green-500" />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={14} />
-                      Copy
-                    </>
-                  )}
-                </button>
-
-                {hiddenIds.includes(detailTx.id) ? (
-                  <button
-                    onClick={() => {
-                      handleUnhide(detailTx);
-                      setDetailTx(null);
-                    }}
-                    className="flex-1 min-w-25 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm font-medium text-amber-500 hover:bg-amber-500/20 transition-colors"
-                  >
-                    <Eye size={14} />
-                    Unhide
-                  </button>
+              <div className="flex gap-2 p-4 border-t border-app shrink-0">
+                {isEditing ? (
+                  <>
+                    <button onClick={() => setIsEditing(false)} className="flex-1 py-2.5 rounded-lg bg-elevated border border-app text-sm font-medium text-primary hover:border-blue-500 transition-colors">
+                      Cancel
+                    </button>
+                    <button onClick={handleSaveEdit} disabled={savingEdit} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-linear-to-r from-blue-600 to-cyan-500 text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-60">
+                      {savingEdit ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} 
+                      Save Changes
+                    </button>
+                  </>
                 ) : (
-                  <button
-                    onClick={() => handleHide(detailTx)}
-                    className="flex-1 min-w-25 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-elevated border border-app text-sm font-medium text-primary hover:border-amber-500 transition-colors"
-                  >
-                    <EyeOff size={14} />
-                    Hide
-                  </button>
+                  <>
+                    <button onClick={() => handleCopyDetails(detailTx)} className="flex-1 min-w-25 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-elevated border border-app text-sm font-medium text-primary hover:border-blue-500 transition-colors">
+                      {copied ? <><Check size={14} className="text-green-500" /> Copied</> : <><Copy size={14} /> Copy</>}
+                    </button>
+                    {hiddenIds.includes(detailTx.id) ? (
+                      <button onClick={() => { handleUnhide(detailTx); setDetailTx(null); }} className="flex-1 min-w-25 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm font-medium text-amber-500 hover:bg-amber-500/20 transition-colors">
+                        <Eye size={14} /> Unhide
+                      </button>
+                    ) : (
+                      <button onClick={() => handleHide(detailTx)} className="flex-1 min-w-25 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-elevated border border-app text-sm font-medium text-primary hover:border-amber-500 transition-colors">
+                        <EyeOff size={14} /> Hide
+                      </button>
+                    )}
+                    <button onClick={() => setDeleteTx(detailTx)} className="flex-1 min-w-25 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-sm font-medium text-red-500 hover:bg-red-500/20 transition-colors">
+                      <Trash2 size={14} /> Delete
+                    </button>
+                  </>
                 )}
-
-                <button
-                  onClick={() => setDeleteTx(detailTx)}
-                  className="flex-1 min-w-25 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-sm font-medium text-red-500 hover:bg-red-500/20 transition-colors"
-                >
-                  <Trash2 size={14} />
-                  Delete
-                </button>
               </div>
             </motion.div>
           </motion.div>

@@ -57,14 +57,14 @@ export const transactionService = {
   },
 
   /**
-   * Update transaction category (NEW).
+   * Update transaction fields (category, amount, merchant, etc.)
    */
-  async updateCategory(id, category) {
-    const response = await api.patch(`/transactions/${id}`, { category });
+  async updateTransaction(id, data) {
+    const response = await api.patch(`/transactions/${id}`, data);
     return response.data;
   },
 
-    /**
+  /**
    * Re-run the parser on all existing transactions for the user.
    */
   async reparseTransactions() {
