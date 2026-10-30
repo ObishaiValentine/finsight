@@ -186,16 +186,21 @@ class TransactionService:
             return 0
 
     def reparse_existing_transactions(self, user_id: str) -> int:
-        """Force re-parse ALL existing transactions, including dates."""
+        """Force re-parse ALL existing transactions, including Gmail-sourced ones.
+
+        - Strips the 'gmail_id:XXX\\n\\n' prefix from Gmail transactions before parsing.
+        - Only touches transaction_date when the current time is midnight (00:00:00).
+        - Falls back to created_at time for banks (like Carbon) whose bodies have no time.
+        """
         try:
             all_transactions = []
             limit = 1000
             offset = 0
-            
+
             while True:
                 response = (
                     supabase.table("transactions")
-                    .select("id, raw_text, merchant, created_at") # Added created_at
+                    .select("id, raw_text, merchant, created_at, transaction_date")
                     .eq("user_id", user_id)
                     .range(offset, offset + limit - 1)
                     .execute()
@@ -210,38 +215,86 @@ class TransactionService:
 
             for tx in all_transactions:
                 raw_text = tx.get("raw_text")
-                
-                if not raw_text or raw_text.startswith("gmail_id:"):
+                if not raw_text:
                     continue
 
-                parsed = self.parser.parse_to_dict(raw_text)
+                # Strip the gmail_id prefix to get the parseable body
+                parse_text = raw_text
+                if raw_text.startswith("gmail_id:"):
+                    parts = raw_text.split("\n\n", 1)
+                    if len(parts) < 2 or not parts[1].strip():
+                        continue
+                    parse_text = parts[1]
+
+                parsed = self.parser.parse_to_dict(parse_text)
                 new_merchant = parsed.get("merchant")
                 new_date = parsed.get("date")
-                
+
                 update_data = {}
 
-                # 1. Update merchant
-                if new_merchant and new_merchant != "Unknown Merchant" and new_merchant != tx.get("merchant"):
+                # 1. Update merchant only if we have a better value
+                if (
+                    new_merchant
+                    and new_merchant != "Unknown Merchant"
+                    and new_merchant != tx.get("merchant")
+                ):
                     update_data["merchant"] = new_merchant
                     update_data["confidence"] = parsed.get("confidence", tx.get("confidence"))
 
-                # 2. Update Date (Fixes the 1am bug)
-                if new_date:
-                    if "00:00:00" in str(new_date):
+                # 2. Fix transaction_date ONLY if it has midnight time
+                existing_date_str = tx.get("transaction_date")
+                needs_time_fix = False
+
+                if existing_date_str:
+                    try:
+                        existing_dt = datetime.fromisoformat(
+                            str(existing_date_str).replace("Z", "+00:00")
+                        )
+                        if (
+                            existing_dt.hour == 0
+                            and existing_dt.minute == 0
+                            and existing_dt.second == 0
+                        ):
+                            needs_time_fix = True
+                    except Exception:
+                        needs_time_fix = True
+                else:
+                    needs_time_fix = True
+
+                if needs_time_fix and new_date:
+                    parsed_has_time = False
+
+                    # First try: time from the email body
+                    try:
+                        parsed_dt = datetime.fromisoformat(str(new_date))
+                        if (
+                            parsed_dt.hour != 0
+                            or parsed_dt.minute != 0
+                            or parsed_dt.second != 0
+                        ):
+                            update_data["transaction_date"] = new_date
+                            parsed_has_time = True
+                    except Exception:
+                        pass
+
+                    # Fallback: use created_at time
+                    if not parsed_has_time:
                         created_at = tx.get("created_at")
                         if created_at:
                             try:
-                                db_time = datetime.fromisoformat(created_at.replace("Z", "+00:00")).astimezone(WAT_TIMEZONE)
-                                parsed_dt = datetime.fromisoformat(new_date)
-                                new_date = parsed_dt.replace(
-                                    hour=db_time.hour, 
-                                    minute=db_time.minute, 
+                                db_time = datetime.fromisoformat(
+                                    created_at.replace("Z", "+00:00")
+                                ).astimezone(WAT_TIMEZONE)
+                                parsed_dt = datetime.fromisoformat(str(new_date))
+                                fixed_date = parsed_dt.replace(
+                                    hour=db_time.hour,
+                                    minute=db_time.minute,
                                     second=db_time.second,
-                                    tzinfo=WAT_TIMEZONE
+                                    tzinfo=WAT_TIMEZONE,
                                 ).isoformat()
+                                update_data["transaction_date"] = fixed_date
                             except Exception:
                                 pass
-                    update_data["transaction_date"] = new_date
 
                 if update_data:
                     supabase.table("transactions").update(update_data).eq("id", tx["id"]).execute()
