@@ -441,10 +441,10 @@ export default function Dashboard({ onReady }) {
                     </div>
                  </div>
 
-                 {/* Expenses List */}
+                  {/* Expenses List */}
                  <div>
-                    <h3 className="text-xs font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-                       <TrendingDown size={14} className="text-muted" /> Expenses
+                    <h3 className="text-xs font-bold text-red-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                       <TrendingDown size={14} className="text-red-500" /> Expenses
                     </h3>
                     <div className="space-y-2">
                        {todayTransactions.filter(tx => tx.transaction_type === 'debit').length === 0 ? (
@@ -456,8 +456,8 @@ export default function Dashboard({ onReady }) {
                                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + i * 0.05 }}
                                 className="flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors group"
                              >
-                                <div className="flex items-center gap-4">
-                                   <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                                  <div className="flex items-center gap-4">
+                                   <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform">
                                       <ArrowUpRight size={18} />
                                    </div>
                                    <span className="text-sm font-medium text-secondary">{formatTimeOnly(tx.transaction_date)}</span>
