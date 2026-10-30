@@ -48,6 +48,12 @@ function formatRelativeDate(dateString) {
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffDays = Math.floor(diffHours / 24);
   
+  if (diffDays === 0) {
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    if (diffMins < 60) return `${diffMins} mins ago`;
+    return `${diffHours} hours ago`;
+  }
+  
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays} days ago`;
   return date.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
