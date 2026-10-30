@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wallet, TrendingUp, TrendingDown, Plus,
-  ArrowUpRight, ArrowDownLeft, Loader2,
+  ArrowUpRight, ArrowDownLeft, Loader2, X
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
@@ -32,28 +32,22 @@ function formatAmount(amount) {
 
 function formatRelativeDate(dateString) {
   if (!dateString) return '—';
-  
   let cleanStr = String(dateString).replace(/\s*(am|pm|AM|PM)/gi, '').trim();
   const date = new Date(cleanStr);
-  
   if (isNaN(date.getTime())) return 'Unknown Date';
 
-  // Format: Oct 29, 2026 at 11:40 pm
-  const formattedTime = date.toLocaleTimeString('en-NG', { 
-    hour: 'numeric', 
-    minute: '2-digit', 
-    hour12: true, 
-    timeZone: 'Africa/Lagos' 
-  }).toLowerCase();
-
-  const formattedDate = date.toLocaleDateString('en-NG', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'Africa/Lagos'
-  });
-
+  const formattedTime = date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' }).toLowerCase();
+  const formattedDate = date.toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Africa/Lagos' });
+  
   return `${formattedDate} at ${formattedTime}`;
+}
+
+function formatTimeOnly(dateString) {
+  if (!dateString) return '—';
+  let cleanStr = String(dateString).replace(/\s*(am|pm|AM|PM)/gi, '').trim();
+  const date = new Date(cleanStr);
+  if (isNaN(date.getTime())) return '—';
+  return date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' }).toLowerCase();
 }
 
 export default function Dashboard({ onReady }) {
@@ -65,8 +59,10 @@ export default function Dashboard({ onReady }) {
 
   const [stats, setStats] = useState(null);
   const [recentTransactions, setRecentTransactions] = useState([]);
+  const [todayTransactions, setTodayTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showCashFlowModal, setShowCashFlowModal] = useState(false);
 
   const greeting = getGreeting();
   const firstName = getFirstName(user);
@@ -78,10 +74,24 @@ export default function Dashboard({ onReady }) {
     try {
       const [statsData, transactionsData] = await Promise.all([
         transactionService.getStats(),
-        transactionService.getTransactions({ page: 1, pageSize: 5 }),
+        transactionService.getTransactions({ page: 1, pageSize: 100 }), // Fetch more for modal
       ]);
       setStats(statsData);
-      setRecentTransactions(transactionsData.transactions || []);
+      
+      const allTx = transactionsData.transactions || [];
+      setRecentTransactions(allTx.slice(0, 5)); // Only show 5 on the main page
+
+      // Filter for Today's transactions for the modal
+      const todayStr = new Date().toLocaleDateString('en-NG', { timeZone: 'Africa/Lagos' });
+      const todaysTx = allTx.filter(tx => {
+        if (!tx.transaction_date) return false;
+        const txDate = new Date(String(tx.transaction_date).replace(/\s*(am|pm|AM|PM)/gi, '').trim());
+        const txDateStr = txDate.toLocaleDateString('en-NG', { timeZone: 'Africa/Lagos' });
+        return txDateStr === todayStr;
+      });
+      
+      setTodayTransactions(todaysTx);
+
     } catch (err) {
       setError(err.message || 'Failed to load data');
     } finally {
@@ -93,7 +103,6 @@ export default function Dashboard({ onReady }) {
   useEffect(() => {
     const init = async () => {
       await fetchData(true);
-      // Just trigger the sync. SyncContext will handle the notifications!
       await syncNow(20, true).catch(() => null);
     };
     init();
@@ -195,13 +204,14 @@ export default function Dashboard({ onReady }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         
-        {/* 1. TODAY'S CASH FLOW */}
+        {/* 1. TODAY'S CASH FLOW (Now Opens Modal) */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          onClick={() => setActivePage('analytics')}
-          whileHover={{ y: -4 }}
+          onClick={() => setShowCashFlowModal(true)}
+          whileHover={{ y: -4, scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           className={`rounded-xl p-5 cursor-pointer relative overflow-hidden border transition-colors ${
             isDark ? 'bg-[#13131a] border-white/5' : 'bg-white border-slate-200 shadow-sm'
           }`}
@@ -263,7 +273,7 @@ export default function Dashboard({ onReady }) {
           </p>
         </motion.div>
 
-        {/* 3. TOTAL EXPENSES (Reverted to Red) */}
+        {/* 3. TOTAL EXPENSES */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -290,7 +300,7 @@ export default function Dashboard({ onReady }) {
 
       </div>
 
-      {/* RECENT TRANSACTIONS (Reverted to Red/Green) */}
+      {/* RECENT TRANSACTIONS */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -360,6 +370,107 @@ export default function Dashboard({ onReady }) {
           </div>
         )}
       </motion.div>
+
+      {/* PREMIUM TODAY CASH FLOW MODAL */}
+      <AnimatePresence>
+        {showCashFlowModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowCashFlowModal(false)}
+            className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+            style={{ zIndex: 100 }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 30 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-card border border-app rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[85vh] relative"
+            >
+              {/* Animated Top Banner */}
+              <div className="h-32 relative overflow-hidden shrink-0 flex items-center justify-center">
+                 <AuroraBackground intensity="subtle" />
+                 <div className="relative z-10 text-center">
+                    <p className="text-xs uppercase tracking-widest text-gray-400 mb-1">Today's Net Flow</p>
+                    <h2 className={`text-4xl font-extrabold tracking-tight ${todayNet >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                       {todayNet > 0 ? '+' : todayNet < 0 ? '-' : ''}{formatAmount(Math.abs(todayNet))}
+                    </h2>
+                 </div>
+                 <button 
+                   onClick={() => setShowCashFlowModal(false)}
+                   className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/20 hover:bg-black/40 flex items-center justify-center text-white backdrop-blur-md transition-colors"
+                 >
+                    <X size={16} />
+                 </button>
+              </div>
+
+              {/* Content Body */}
+              <div className="flex-1 overflow-y-auto p-6 hide-scrollbar space-y-8">
+                 
+                 {/* Incomes List */}
+                 <div>
+                    <h3 className="text-sm font-bold text-green-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                       <TrendingUp size={16} /> Incomes
+                    </h3>
+                    <div className="space-y-3">
+                       {todayTransactions.filter(tx => tx.transaction_type === 'credit').length === 0 ? (
+                          <p className="text-xs text-muted text-center py-4 bg-elevated/50 rounded-xl border border-app border-dashed">No income recorded today</p>
+                       ) : (
+                          todayTransactions.filter(tx => tx.transaction_type === 'credit').map((tx, i) => (
+                             <motion.div 
+                                key={tx.id} 
+                                initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 + i * 0.05 }}
+                                className="flex items-center justify-between p-3 rounded-xl bg-green-500/5 border border-green-500/10"
+                             >
+                                <div className="flex items-center gap-3">
+                                   <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-green-500">
+                                      <ArrowDownLeft size={14} />
+                                   </div>
+                                   <span className="text-xs font-medium text-secondary">{formatTimeOnly(tx.transaction_date)}</span>
+                                </div>
+                                <span className="text-sm font-bold text-green-500">+{formatAmount(tx.amount)}</span>
+                             </motion.div>
+                          ))
+                       )}
+                    </div>
+                 </div>
+
+                 {/* Expenses List */}
+                 <div>
+                    <h3 className="text-sm font-bold text-red-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                       <TrendingDown size={16} /> Expenses
+                    </h3>
+                    <div className="space-y-3">
+                       {todayTransactions.filter(tx => tx.transaction_type === 'debit').length === 0 ? (
+                          <p className="text-xs text-muted text-center py-4 bg-elevated/50 rounded-xl border border-app border-dashed">No expenses recorded today</p>
+                       ) : (
+                          todayTransactions.filter(tx => tx.transaction_type === 'debit').map((tx, i) => (
+                             <motion.div 
+                                key={tx.id} 
+                                initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + i * 0.05 }}
+                                className="flex items-center justify-between p-3 rounded-xl bg-red-500/5 border border-red-500/10"
+                             >
+                                <div className="flex items-center gap-3">
+                                   <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-red-500">
+                                      <ArrowUpRight size={14} />
+                                   </div>
+                                   <span className="text-xs font-medium text-secondary">{formatTimeOnly(tx.transaction_date)}</span>
+                                </div>
+                                <span className="text-sm font-bold text-red-500">-{formatAmount(tx.amount)}</span>
+                             </motion.div>
+                          ))
+                       )}
+                    </div>
+                 </div>
+
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

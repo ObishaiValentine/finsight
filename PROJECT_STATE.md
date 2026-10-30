@@ -1399,3 +1399,24 @@ We just finished implementing the Gmail timestamp fallback and the multi-transac
 2. **Cross-Device Sync Decision:** Decide if we want to build a `notifications` table in Supabase to sync notifications across mobile and desktop.
 3. **Mobile QA:** Ensure the new Notification modal fits perfectly on mobile screens.
 4. **Onboarding Tour:** Build the step-by-step tutorial for first-time users (Phase 1 final task).
+
+---
+
+## 48. SESSION LOG UPDATE
+
+### Session 020 — Data Accuracy, Timezones, and Auth Fixes 🚀
+- **Reparse Time Fallback:** Fixed the `reparse_existing_transactions` function to strip the `gmail_id:` prefix and parse the raw email body. For old Carbon transactions (which lack a time in the email body), it now falls back to the `created_at` timestamp so they no longer show `00:00:00`. 
+- **Professional UI Dates:** Updated both `Dashboard.jsx` and `Transactions.jsx` to use absolute dates (e.g., `Oct 29, 2026 at 11:40 pm`) instead of relative times like "11 hours ago" or "Yesterday". This aligns with professional financial tracking standards.
+- **Google OAuth Race Condition Fixed:** Fixed the bug where Google Login would freeze or require double-clicking. `AuthCallback.jsx` now properly waits for the Supabase session to be parsed from the URL hash and fallback listeners are in place.
+- **Sync Duplicate Bug Fixed:** Updated `gmail_sync_service.py` `_is_duplicate()` to use `.like()` instead of `.eq()`. This fixes the silent failure where the database threw a UNIQUE constraint error, preventing notifications from triggering.
+- **Notification Z-Index Fix:** Changed `z-100` to inline `style={{ zIndex: 100 }}` in `NotificationModal.jsx` and `ToastContainer.jsx` to ensure notifications and toasts render above all other UI elements.
+
+---
+
+## 49. NEXT SESSION INSTRUCTIONS
+
+### The Immediate Next Tasks (Phase 1)
+1. **Onboarding Tour (Deferred):** Build a step-by-step tutorial for first-time users. (Can wait until we add a few more features).
+2. **Phase 2 / Monetization Prep:**
+   - Budget Goals (Allow users to set monthly limits per category).
+   - Multi-Account Gmail Support (Allow users to connect 2+ Gmails).
