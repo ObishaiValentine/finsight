@@ -59,11 +59,12 @@ class GmailSyncService:
 
     def _is_duplicate(self, user_id: str, gmail_id: str) -> bool:
         try:
+            # FIX: Use .like() because raw_text contains the gmail_id AND the body text
             response = (
                 supabase.table("transactions")
                 .select("id")
                 .eq("user_id", user_id)
-                .eq("raw_text", f"gmail_id:{gmail_id}")
+                .like("raw_text", f"gmail_id:{gmail_id}%")
                 .limit(1)
                 .execute()
             )
@@ -187,8 +188,12 @@ class GmailSyncService:
                 if response.data:
                     synced_transactions.append(response.data[0])
             except Exception as e:
-                failed += 1
-                errors.append(f"Save error: {str(e)[:100]}")
+                error_str = str(e)
+                if "duplicate key value violates unique constraint" in error_str:
+                    skipped += 1 # It's a duplicate, skip silently instead of failing
+                else:
+                    failed += 1
+                    errors.append(f"Save error: {error_str[:100]}")
 
         # --- SELF-HEALING: Clean up any duplicates just in case ---
         from app.services.transaction_service import transaction_service
