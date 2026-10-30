@@ -38,25 +38,22 @@ function formatRelativeDate(dateString) {
   
   if (isNaN(date.getTime())) return 'Unknown Date';
 
-  const now = new Date();
-  
-  if (date.toDateString() === now.toDateString()) {
-    return `Today at ${date.toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit', timeZone: 'Africa/Lagos' }).toLowerCase()}`;
-  }
+  // Format: Oct 29, 2026 at 11:40 pm
+  const formattedTime = date.toLocaleTimeString('en-NG', { 
+    hour: 'numeric', 
+    minute: '2-digit', 
+    hour12: true, 
+    timeZone: 'Africa/Lagos' 
+  }).toLowerCase();
 
-  const diffMs = now - date;
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffHours / 24);
-  
-  if (diffDays === 0) {
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    if (diffMins < 60) return `${diffMins} mins ago`;
-    return `${diffHours} hours ago`;
-  }
-  
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays} days ago`;
-  return date.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
+  const formattedDate = date.toLocaleDateString('en-NG', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'Africa/Lagos'
+  });
+
+  return `${formattedDate} at ${formattedTime}`;
 }
 
 export default function Dashboard({ onReady }) {

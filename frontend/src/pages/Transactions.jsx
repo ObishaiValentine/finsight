@@ -998,23 +998,18 @@ function formatFullDate(dateString) {
   
   if (isNaN(date.getTime())) return 'Unknown Date'; 
 
-  const now = new Date();
-  const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' };
-  const formattedTime = date.toLocaleTimeString('en-NG', timeOptions).toLowerCase();
-
-  if (date.toDateString() === now.toDateString()) {
-    return `Today at ${formattedTime}`;
-  }
-  
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) {
-    return `Yesterday at ${formattedTime}`;
-  }
+  // Format: Oct 29, 2026 at 11:40 pm
+  const formattedTime = date.toLocaleTimeString('en-NG', { 
+    hour: 'numeric', 
+    minute: '2-digit', 
+    hour12: true, 
+    timeZone: 'Africa/Lagos' 
+  }).toLowerCase();
 
   return date.toLocaleDateString('en-NG', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    timeZone: 'Africa/Lagos'
   }) + ` at ${formattedTime}`;
 }
