@@ -404,7 +404,7 @@ export default function Dashboard({ onReady }) {
                     <X size={16} />
                  </button>
                  
-                 <p className="text-[10px] uppercase tracking-widest text-muted mb-2 font-semibold">Today's Net Flow</p>
+                 <p className="text-[10px] uppercase tracking-widest text-muted mb-2 font-semibold">Today's Cash Flow</p>
                  <h2 className={`text-5xl font-extrabold tracking-tight drop-shadow-lg ${todayNet >= 0 ? 'text-green-400' : 'text-primary'}`}>
                     {todayNet > 0 ? '+' : todayNet < 0 ? '-' : ''}{formatAmount(Math.abs(todayNet))}
                  </h2>
