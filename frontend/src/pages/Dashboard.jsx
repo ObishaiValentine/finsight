@@ -383,55 +383,58 @@ export default function Dashboard({ onReady }) {
             style={{ zIndex: 100 }}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 30 }}
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 30 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-card border border-app rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[85vh] relative"
+              className="bg-card border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[85vh] relative"
             >
-              {/* Animated Top Banner */}
-              <div className="h-32 relative overflow-hidden shrink-0 flex items-center justify-center">
-                 <AuroraBackground intensity="subtle" />
-                 <div className="relative z-10 text-center">
-                    <p className="text-xs uppercase tracking-widest text-gray-400 mb-1">Today's Net Flow</p>
-                    <h2 className={`text-4xl font-extrabold tracking-tight ${todayNet >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                       {todayNet > 0 ? '+' : todayNet < 0 ? '-' : ''}{formatAmount(Math.abs(todayNet))}
-                    </h2>
-                 </div>
+              {/* Full-Screen Aurora Background */}
+              <div className="absolute inset-0 pointer-events-none opacity-40">
+                <AuroraBackground intensity="normal" />
+              </div>
+
+              {/* Top Header */}
+              <div className="relative z-10 pt-10 pb-6 px-6 text-center shrink-0">
                  <button 
                    onClick={() => setShowCashFlowModal(false)}
-                   className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/20 hover:bg-black/40 flex items-center justify-center text-white backdrop-blur-md transition-colors"
+                   className="absolute top-6 right-6 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-muted hover:text-primary backdrop-blur-md transition-all"
                  >
                     <X size={16} />
                  </button>
+                 
+                 <p className="text-[10px] uppercase tracking-widest text-muted mb-2 font-semibold">Today's Net Flow</p>
+                 <h2 className={`text-5xl font-extrabold tracking-tight drop-shadow-lg ${todayNet >= 0 ? 'text-green-400' : 'text-primary'}`}>
+                    {todayNet > 0 ? '+' : todayNet < 0 ? '-' : ''}{formatAmount(Math.abs(todayNet))}
+                 </h2>
               </div>
 
               {/* Content Body */}
-              <div className="flex-1 overflow-y-auto p-6 hide-scrollbar space-y-8">
+              <div className="relative z-10 flex-1 overflow-y-auto px-6 pb-8 hide-scrollbar space-y-8">
                  
                  {/* Incomes List */}
                  <div>
-                    <h3 className="text-sm font-bold text-green-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-                       <TrendingUp size={16} /> Incomes
+                    <h3 className="text-xs font-bold text-green-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                       <TrendingUp size={14} /> Incomes
                     </h3>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                        {todayTransactions.filter(tx => tx.transaction_type === 'credit').length === 0 ? (
-                          <p className="text-xs text-muted text-center py-4 bg-elevated/50 rounded-xl border border-app border-dashed">No income recorded today</p>
+                          <p className="text-xs text-muted text-center py-6 bg-white/5 rounded-2xl">No income recorded today</p>
                        ) : (
                           todayTransactions.filter(tx => tx.transaction_type === 'credit').map((tx, i) => (
                              <motion.div 
                                 key={tx.id} 
-                                initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 + i * 0.05 }}
-                                className="flex items-center justify-between p-3 rounded-xl bg-green-500/5 border border-green-500/10"
+                                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.05 }}
+                                className="flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors group"
                              >
-                                <div className="flex items-center gap-3">
-                                   <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-green-500">
-                                      <ArrowDownLeft size={14} />
+                                <div className="flex items-center gap-4">
+                                   <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center text-green-500 group-hover:scale-110 transition-transform">
+                                      <ArrowDownLeft size={18} />
                                    </div>
-                                   <span className="text-xs font-medium text-secondary">{formatTimeOnly(tx.transaction_date)}</span>
+                                   <span className="text-sm font-medium text-secondary">{formatTimeOnly(tx.transaction_date)}</span>
                                 </div>
-                                <span className="text-sm font-bold text-green-500">+{formatAmount(tx.amount)}</span>
+                                <span className="text-base font-bold text-green-500">+{formatAmount(tx.amount)}</span>
                              </motion.div>
                           ))
                        )}
@@ -440,26 +443,26 @@ export default function Dashboard({ onReady }) {
 
                  {/* Expenses List */}
                  <div>
-                    <h3 className="text-sm font-bold text-red-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-                       <TrendingDown size={16} /> Expenses
+                    <h3 className="text-xs font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
+                       <TrendingDown size={14} className="text-muted" /> Expenses
                     </h3>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                        {todayTransactions.filter(tx => tx.transaction_type === 'debit').length === 0 ? (
-                          <p className="text-xs text-muted text-center py-4 bg-elevated/50 rounded-xl border border-app border-dashed">No expenses recorded today</p>
+                          <p className="text-xs text-muted text-center py-6 bg-white/5 rounded-2xl">No expenses recorded today</p>
                        ) : (
                           todayTransactions.filter(tx => tx.transaction_type === 'debit').map((tx, i) => (
                              <motion.div 
                                 key={tx.id} 
-                                initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + i * 0.05 }}
-                                className="flex items-center justify-between p-3 rounded-xl bg-red-500/5 border border-red-500/10"
+                                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + i * 0.05 }}
+                                className="flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors group"
                              >
-                                <div className="flex items-center gap-3">
-                                   <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-red-500">
-                                      <ArrowUpRight size={14} />
+                                <div className="flex items-center gap-4">
+                                   <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                                      <ArrowUpRight size={18} />
                                    </div>
-                                   <span className="text-xs font-medium text-secondary">{formatTimeOnly(tx.transaction_date)}</span>
+                                   <span className="text-sm font-medium text-secondary">{formatTimeOnly(tx.transaction_date)}</span>
                                 </div>
-                                <span className="text-sm font-bold text-red-500">-{formatAmount(tx.amount)}</span>
+                                <span className="text-base font-bold text-primary">-{formatAmount(tx.amount)}</span>
                              </motion.div>
                           ))
                        )}
