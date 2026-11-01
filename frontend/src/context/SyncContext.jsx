@@ -56,6 +56,8 @@ export function SyncProvider({ children }) {
     if (syncInProgressRef.current) return { skipped: true, reason: 'in-progress' };
 
     syncInProgressRef.current = true;
+    // We force the syncing UI state to true even for background syncs if you want visual feedback, 
+    // but we can keep this logic so it doesn't spin the button if it's a silent background sync.
     if (!silent) setIsSyncing(true);
 
     try {
@@ -65,6 +67,8 @@ export function SyncProvider({ children }) {
       setLastSyncTime(now);
       setLastResult(result);
       emitSyncComplete(result);
+
+      // GENERATE NOTIFICATIONS for ANY sync (background, dashboard, manual) that brings new transactions
       if (result && result.synced > 0) {
         const txs = result.synced_transactions || [];
         
@@ -91,7 +95,7 @@ export function SyncProvider({ children }) {
       }
       return result;
     } catch (err) {
-      if (!silent) console.error('Sync failed:', err);
+      console.error('Sync failed:', err);
       return { error: err.message };
     } finally {
       syncInProgressRef.current = false;
