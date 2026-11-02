@@ -221,6 +221,7 @@ class TransactionService:
         - Strips the 'gmail_id:XXX\\n\\n' prefix from Gmail transactions before parsing.
         - Only touches transaction_date when the current time is midnight (00:00:00).
         - Falls back to created_at time for banks (like Carbon) whose bodies have no time.
+        - Re-evaluates categories based on the latest rules.
         """
         try:
             all_transactions = []
@@ -230,7 +231,7 @@ class TransactionService:
             while True:
                 response = (
                     supabase.table("transactions")
-                    .select("id, raw_text, merchant, created_at, transaction_date")
+                    .select("id, raw_text, merchant, created_at, transaction_date, category, transaction_type")
                     .eq("user_id", user_id)
                     .range(offset, offset + limit - 1)
                     .execute()
@@ -259,6 +260,7 @@ class TransactionService:
                 parsed = self.parser.parse_to_dict(parse_text)
                 new_merchant = parsed.get("merchant")
                 new_date = parsed.get("date")
+                tx_type = parsed.get("transaction_type") or tx.get("transaction_type")
 
                 update_data = {}
 
@@ -271,7 +273,16 @@ class TransactionService:
                     update_data["merchant"] = new_merchant
                     update_data["confidence"] = parsed.get("confidence", tx.get("confidence"))
 
-                # 2. Fix transaction_date ONLY if it has midnight time
+                # 2. Re-evaluate category using the latest rules
+                new_category = category_service.categorize(
+                    text=f"{new_merchant or ''} {parse_text}",
+                    transaction_type=tx_type,
+                )
+                # Only update if the category actually changed
+                if new_category and new_category != tx.get("category"):
+                    update_data["category"] = new_category
+
+                # 3. Fix transaction_date ONLY if it has midnight time
                 existing_date_str = tx.get("transaction_date")
                 needs_time_fix = False
 
