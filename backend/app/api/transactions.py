@@ -11,6 +11,7 @@ from app.schemas.transaction import (
 )
 from app.services.transaction_service import transaction_service
 from app.api.deps import get_current_user
+from app.services.notification_service import notification_service
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
@@ -82,6 +83,19 @@ def parse_and_save(
         user_id=current_user["id"],
         raw_text=payload.text,
     )
+
+    if result:
+        tx_type = result["transaction_type"].capitalize()
+        tx_amount = f"₦{result['amount']:,.2f}"
+        tx_bank = result.get("bank_name") or "Manual Parse"
+        tx_merchant = result.get("merchant") or "Unknown"
+        
+        notification_service.create_notification(
+            user_id=current_user["id"],
+            title="Transaction Confirmed",
+            message=f"Your manually parsed {tx_type} transaction of {tx_amount} was confirmed. Merchant: {tx_merchant}",
+            type="success" if result["transaction_type"] == "credit" else "info"
+        )
     return result
 
 

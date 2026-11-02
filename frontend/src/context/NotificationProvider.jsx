@@ -10,41 +10,50 @@ export function NotificationProvider({ children }) {
   const [loading, setLoading] = useState(true);
   
   const notificationsRef = useRef([]);
+  const hasInitialized = useRef(false);
 
-  const fetchNotifications = useCallback(async (showToastForNew = false) => {
+  const fetchNotifications = useCallback(async (isPolling = false) => {
     if (!isAuthenticated) return;
     try {
-      // SECURITY: The backend only returns notifications where user_id = auth.uid()
-      // The RLS policies enforce this at the database level.
       const data = await notificationService.getNotifications();
       
-      if (showToastForNew && notificationsRef.current.length > 0) {
-        const newNotifs = data.filter(n => !notificationsRef.current.find(old => old.id === n.id));
+      // If this is a background poll AND we have initialized, check for new items
+      if (isPolling && hasInitialized.current && notificationsRef.current.length > 0) {
+        // Find items in the new data that don't exist in the old ref
+        const newNotifs = data.filter(n => !notificationsRef.current.some(old => old.id === n.id));
         
-        newNotifs.forEach(notif => {
-          setToasts((prev) => [notif, ...prev]);
-          setTimeout(() => {
-            setToasts((prev) => prev.filter(t => t.id !== notif.id));
-          }, 5000);
-        });
+        if (newNotifs.length > 0) {
+          newNotifs.forEach(notif => {
+            // Trigger the popup toast
+            setToasts((prev) => [notif, ...prev]);
+            setTimeout(() => {
+              setToasts((prev) => prev.filter(t => t.id !== notif.id));
+            }, 5000);
+          });
+        }
       }
       
       setNotifications(data);
       notificationsRef.current = data;
+
+      // Mark as initialized on first successful fetch
+      if (!hasInitialized.current) {
+        hasInitialized.current = true;
+        setLoading(false);
+      }
+
     } catch (err) {
       console.error('Failed to fetch notifications', err);
-    } finally {
-      setLoading(false);
     }
   }, [isAuthenticated]);
 
   // Initial fetch and polling setup
   useEffect(() => {
-    // We use a microtask here to avoid the "setState synchronously in effect" warning
     Promise.resolve().then(() => {
       if (!isAuthenticated) {
         setNotifications([]);
         notificationsRef.current = [];
+        hasInitialized.current = false;
         setLoading(false);
         return;
       }
@@ -53,10 +62,10 @@ export function NotificationProvider({ children }) {
 
     if (!isAuthenticated) return;
 
-    // Poll every 15 seconds
+    // Poll every 10 seconds to check for new notifications (was 15)
     const interval = setInterval(() => {
-      fetchNotifications(true);
-    }, 15000);
+      fetchNotifications(true); // Pass true to indicate this is a polling check
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [isAuthenticated, fetchNotifications]);
@@ -75,20 +84,16 @@ export function NotificationProvider({ children }) {
     };
 
     setToasts((prev) => [localToast, ...prev]);
-
-    setTimeout(() => {
-      removeToast(localToast.id);
-    }, 5000);
+    setTimeout(() => removeToast(localToast.id), 5000);
     
+    // Refresh list from DB
     fetchNotifications(false);
   }, [removeToast, fetchNotifications]);
 
   const markAllAsRead = useCallback(async () => {
-    // Optimistic UI update
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     try {
       await notificationService.markAllAsRead();
-      // Refresh from DB to ensure accuracy
       fetchNotifications(false);
     } catch (err) {
       console.error("Failed to mark read", err);
@@ -96,14 +101,12 @@ export function NotificationProvider({ children }) {
   }, [fetchNotifications]);
 
   const clearAll = useCallback(async () => {
-    // Optimistic UI update
     setNotifications([]);
     notificationsRef.current = [];
     try {
       await notificationService.clearAll();
     } catch (err) {
       console.error("Failed to clear notifications", err);
-      // Re-fetch if it failed, to restore the UI
       fetchNotifications(false);
     }
   }, [fetchNotifications]);

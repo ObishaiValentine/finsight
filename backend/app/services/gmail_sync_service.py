@@ -189,6 +189,7 @@ class GmailSyncService:
                 if response.data:
                     synced_transactions.append(response.data[0])
 
+                     # --- ADD NOTIFICATION HERE ---
                     tx_type = parsed["transaction_type"].capitalize()
                     tx_amount = f"₦{parsed['amount']:,.2f}"
                     tx_bank = bank
@@ -196,10 +197,11 @@ class GmailSyncService:
                     
                     notification_service.create_notification(
                         user_id=user_id,
-                        title=f"{tx_type} Alert: {tx_amount}",
-                        message=f"A {tx_type.lower()} transaction of {tx_amount} occurred at {tx_bank}. Merchant: {tx_merchant}",
+                        title="Transaction Confirmed",
+                        message=f"Your {tx_type} transaction of {tx_amount} at {tx_bank} was confirmed. Merchant: {tx_merchant}",
                         type="success" if parsed["transaction_type"] == "credit" else "info"
                     )
+                    
             except Exception as e:
                 error_str = str(e)
                 if "duplicate key value violates unique constraint" in error_str:

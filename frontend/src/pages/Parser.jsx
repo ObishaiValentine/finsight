@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useNotification } from '../hooks/useNotification';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles,
@@ -41,6 +42,7 @@ export default function Parser({ onReady }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const { addNotification } = useNotification();
 
   const handleParse = async () => {
     if (!input.trim()) {
@@ -76,11 +78,21 @@ export default function Parser({ onReady }) {
       const response = await api.post('/transactions/parse-and-save', {
         text: input,
       });
+      
+      const parsedData = response.data;
       setResult({
-  ...response.data,
-  date: response.data.transaction_date || response.data.date,
-  balance: response.data.balance_after || response.data.balance,
-});;
+        ...parsedData,
+        date: parsedData.transaction_date || parsedData.date,
+        balance: parsedData.balance_after || parsedData.balance,
+      });
+
+      // Trigger the notification immediately on the frontend
+      addNotification({
+        title: 'Transaction Confirmed',
+        message: `Your manually parsed transaction of ₦${parsedData.amount.toLocaleString()} was saved.`,
+        type: parsedData.transaction_type === 'credit' ? 'success' : 'info'
+      });
+
     } catch (err) {
       setError(err.message || 'Failed to parse and save alert');
     } finally {
