@@ -1439,3 +1439,45 @@ We just finished implementing the Gmail timestamp fallback and the multi-transac
 ### The Immediate Next Tasks (Phase 1)
 1. **Onboarding Tour:** Build a step-by-step tutorial for first-time users (can use `react-joyride` or a custom Framer Motion overlay). Guide them to connect Gmail and view their first transactions.
 2. **Mobile UI Polish:** Ensure the sidebar, transaction tables, and modals look absolutely perfect on mobile screens (no overlapping text, proper padding).
+
+---
+
+## 52. SESSION LOG UPDATE
+
+### Session 022 — Permanent Cross-Device Notification System & UI Upgrades 🚀
+- **Database Notification Architecture:** Completely deprecated the `localStorage`-based notification system. Created a new `notifications` table in Supabase with Row-Level Security (RLS) to ensure users only see their own alerts.
+- **Backend Notification Triggers:** Created `notification_service.py`. Notifications are now generated *at the database level* immediately when a transaction is successfully parsed (both via Gmail Sync and Manual Parser).
+- **Cross-Device Sync:** The frontend `NotificationProvider` now polls the database every 10 seconds. This ensures that if a user makes a transaction on their phone, the notification will also appear on their desktop, and vice versa.
+- **Toast Popup Fix:** Fixed the React state batching bug so that the sliding toast popups reliably appear every time a new notification arrives from the DB.
+- **Premium Cash Flow Modal (From earlier):** Added an animated, glassmorphism "Today's Net Flow" modal on the dashboard. It features separated Income (Green) and Expense (Neutral/Red header) lists with timestamps.
+- **Transaction Editing:** Added a full Edit mode inside the Transaction Detail modal, allowing users to manually override parser data (Amount, Merchant, Type, Date, Balance, Category).
+- **UI Polish:** Removed unused variables, fixed scrollbar visibility (`hide-scrollbar`), and adjusted z-index layering for modals and toasts (`z-[100]`).
+
+---
+
+## 53. NEXT SESSION INSTRUCTIONS
+
+### The Immediate Next Tasks (Phase 1)
+1. **Onboarding Tour:** Build a step-by-step tutorial for first-time users (can use `react-joyride` or a custom Framer Motion overlay). Guide them to connect Gmail and view their first transactions.
+2. **Mobile UI Polish:** Ensure the sidebar, transaction tables, and modals look absolutely perfect on mobile screens (no overlapping text, proper padding).
+
+---
+
+## 54. PREMIUM FEATURES ROADMAP & PAYWALL STRATEGY
+
+### The Monetization Philosophy
+FinSight will use a Freemium model. The core parser and manual tracking will always be free (to build the user base). Advanced analytics, automation, and financial planning tools will be locked behind a "Premium" tier.
+
+### Planned Premium Features (To Be Built)
+1. **Safe to Spend & Smart Budgets:** Monthly category limits and a dynamic "Safe to Spend" daily allowance on the dashboard.
+2. **Recurring Transactions & Subscription Tracker:** Auto-detecting Netflix, DSTV, etc., and warning users of price hikes.
+3. **Advanced Filtering & Date Ranges:** Server-side date filtering (e.g., "This Week", "Last Month", "Custom").
+4. **Financial Health Score:** A 0-100 score based on savings rate and spending habits, with AI-generated text insights.
+5. **Export to CSV/PDF:** Allow users to download their statements.
+
+### Paywall Architecture (How we will lock features)
+- **Database:** The `users` table already has a `plan` column (default: 'free'). 
+- **Backend:** Premium endpoints will check `if current_user["plan"] != "premium": raise HTTPException(403, "Premium required")`.
+- **Frontend:** We will build a `PremiumGateModal.jsx`. When a free user clicks a premium button (e.g., "Export CSV"), instead of triggering the action, it will open this modal with a beautiful "Upgrade to Premium" UI.
+
+---

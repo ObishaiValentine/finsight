@@ -71,4 +71,15 @@ export const transactionService = {
     const response = await api.post('/transactions/reparse');
     return response.data;
   },
+
+  async exportTransactions(params = {}) {
+    const query = new URLSearchParams();
+    if (params.transactionType) query.append('transaction_type', params.transactionType);
+    if (params.bankName) query.append('bank_name', params.bankName);
+    if (params.startDate) query.append('start_date', params.startDate);
+    if (params.endDate) query.append('end_date', params.endDate);
+
+    const response = await api.get(`/transactions/export?${query.toString()}`);
+    return response.data;
+  },
 };

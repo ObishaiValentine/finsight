@@ -89,6 +89,8 @@ class TransactionService:
         page_size: int = 20,
         transaction_type: Optional[str] = None,
         bank_name: Optional[str] = None,
+        start_date: Optional[str] = None, # NEW
+        end_date: Optional[str] = None,   # NEW
     ) -> Dict:
         try:
             query = supabase.table("transactions").select("*", count="exact").eq("user_id", user_id)
@@ -97,6 +99,10 @@ class TransactionService:
                 query = query.eq("transaction_type", transaction_type)
             if bank_name:
                 query = query.eq("bank_name", bank_name)
+            if start_date:
+                query = query.gte("transaction_date", start_date)
+            if end_date:
+                query = query.lte("transaction_date", end_date)
 
             offset = (page - 1) * page_size
             query = query.order("transaction_date", desc=True).range(offset, offset + page_size - 1)
@@ -112,12 +118,36 @@ class TransactionService:
                 "page_size": page_size,
                 "total_pages": total_pages,
             }
-
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Database error: {str(e)}",
-            )
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+    def get_export_transactions(
+        self,
+        user_id: str,
+        transaction_type: Optional[str] = None,
+        bank_name: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> List[Dict]:
+        """Fetch all transactions for export without pagination."""
+        try:
+            query = supabase.table("transactions").select("*").eq("user_id", user_id)
+
+            if transaction_type:
+                query = query.eq("transaction_type", transaction_type)
+            if bank_name:
+                query = query.eq("bank_name", bank_name)
+            if start_date:
+                query = query.gte("transaction_date", start_date)
+            if end_date:
+                query = query.lte("transaction_date", end_date)
+
+            # Limit to 5000 just to be safe with memory
+            query = query.order("transaction_date", desc=True).limit(5000)
+            response = query.execute()
+            return response.data or []
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Export error: {str(e)}")
 
     def get_transaction(self, user_id: str, transaction_id: str) -> Optional[Dict]:
         try:

@@ -105,6 +105,8 @@ def list_transactions(
     page_size: int = Query(20, ge=1, le=100),
     transaction_type: Optional[str] = Query(None, pattern="^(debit|credit)$"),
     bank_name: Optional[str] = None,
+    start_date: Optional[str] = None, # NEW
+    end_date: Optional[str] = None,   # NEW
     current_user: dict = Depends(get_current_user),
 ):
     """Get paginated transactions for current user."""
@@ -114,6 +116,25 @@ def list_transactions(
         page_size=page_size,
         transaction_type=transaction_type,
         bank_name=bank_name,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+@router.get("/export")
+def export_transactions(
+    transaction_type: Optional[str] = Query(None),
+    bank_name: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+):
+    """Fetch all transactions matching filters for export."""
+    return transaction_service.get_export_transactions(
+        user_id=current_user["id"],
+        transaction_type=transaction_type,
+        bank_name=bank_name,
+        start_date=start_date,
+        end_date=end_date,
     )
 
 
