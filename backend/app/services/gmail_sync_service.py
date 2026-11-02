@@ -9,6 +9,7 @@ from app.core.supabase_client import supabase
 from app.services.gmail_service import gmail_service
 from app.services.parsers.hybrid_parser import HybridParser
 from app.services.category_service import category_service
+from app.services.notification_service import notification_service
 
 
 # Map sender email domains to bank names
@@ -187,6 +188,18 @@ class GmailSyncService:
                 synced += 1
                 if response.data:
                     synced_transactions.append(response.data[0])
+
+                    tx_type = parsed["transaction_type"].capitalize()
+                    tx_amount = f"₦{parsed['amount']:,.2f}"
+                    tx_bank = bank
+                    tx_merchant = parsed.get("merchant") or "Unknown"
+                    
+                    notification_service.create_notification(
+                        user_id=user_id,
+                        title=f"{tx_type} Alert: {tx_amount}",
+                        message=f"A {tx_type.lower()} transaction of {tx_amount} occurred at {tx_bank}. Merchant: {tx_merchant}",
+                        type="success" if parsed["transaction_type"] == "credit" else "info"
+                    )
             except Exception as e:
                 error_str = str(e)
                 if "duplicate key value violates unique constraint" in error_str:

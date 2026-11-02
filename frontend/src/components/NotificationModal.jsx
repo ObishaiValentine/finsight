@@ -20,8 +20,7 @@ export default function NotificationModal({ isOpen, onClose }) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-          style={{ zIndex: 100 }}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-100 flex items-center justify-center p-4"
         >
           <motion.div
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -67,7 +66,7 @@ export default function NotificationModal({ isOpen, onClose }) {
                   <div
                     key={notif.id}
                     className={`p-5 flex gap-4 transition-colors ${
-                      notif.read ? 'bg-transparent' : 'bg-elevated/30'
+                      notif.is_read ? 'bg-transparent' : 'bg-elevated/30'
                     }`}
                   >
                     {/* Carbon-style Soft Icon */}
@@ -82,14 +81,14 @@ export default function NotificationModal({ isOpen, onClose }) {
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <h3 className={`text-sm font-semibold mb-1 ${notif.read ? 'text-secondary' : 'text-primary'}`}>
+                      <h3 className={`text-sm font-semibold mb-1 ${notif.is_read ? 'text-secondary' : 'text-primary'}`}>
                         {notif.title}
                       </h3>
-                      <p className={`text-sm leading-relaxed mb-2 ${notif.read ? 'text-muted' : 'text-secondary'}`}>
+                      <p className={`text-sm leading-relaxed mb-2 ${notif.is_read ? 'text-muted' : 'text-secondary'}`}>
                         {notif.message}
                       </p>
                       <p className="text-[10px] font-medium text-muted">
-                        {formatDate(notif.timestamp)} • {formatTime(notif.timestamp)}
+                        {formatDate(notif.created_at)} • {formatTime(notif.created_at)}
                       </p>
                     </div>
                   </div>
