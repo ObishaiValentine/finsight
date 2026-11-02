@@ -230,9 +230,7 @@ export default function Transactions({ onReady }) {
         Merchant: tx.merchant || 'Unknown',
         Bank: tx.bank_name || 'Unknown',
         Type: tx.transaction_type.toUpperCase(),
-        Category: tx.category || 'Uncategorized',
         Amount: tx.amount,
-        Balance: tx.balance_after || '',
       }));
 
       if (exportFormat === 'csv') {
@@ -313,7 +311,7 @@ export default function Transactions({ onReady }) {
 
           <div className="flex items-center gap-2 bg-card border border-app px-3 py-1.5 rounded-lg">
             <span className="text-xs text-muted font-medium whitespace-nowrap">Go to</span>
-            <input
+              <input
               type="number" min="1" max={totalPages} value={gotoPage}
               onChange={(e) => setGotoPage(e.target.value)}
               onKeyDown={(e) => {
@@ -324,7 +322,7 @@ export default function Transactions({ onReady }) {
                 }
               }}
               placeholder={currentPage.toString()}
-              className="w-10 bg-elevated rounded text-xs text-center text-primary focus:outline-none py-1"
+              className="w-10 bg-elevated rounded text-xs text-center text-primary focus:outline-none py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <span className="text-xs text-muted">/ {totalPages}</span>
           </div>
@@ -606,7 +604,6 @@ export default function Transactions({ onReady }) {
                     <DetailRow icon={Wallet} label="Bank" value={detailTx.bank_name || 'Unknown'} />
                     {detailTx.account_number && <DetailRow icon={Hash} label="Account" value={`•••• ${String(detailTx.account_number).slice(-4)}`} mono />}
                     <DetailRow icon={Calendar} label="Type" value={detailTx.transaction_type?.toUpperCase() || '—'} capitalize />
-                    {detailTx.balance_after !== null && detailTx.balance_after !== undefined && <DetailRow icon={Wallet} label="Balance After" value={formatAmount(detailTx.balance_after)} />}
                     {detailTx.confidence !== null && detailTx.confidence !== undefined && <DetailRow icon={Sparkles} label="Parser Confidence" value={`${(detailTx.confidence * 100).toFixed(1)}%`} valueColor={ detailTx.confidence >= 0.9 ? 'text-green-500' : detailTx.confidence >= 0.7 ? 'text-yellow-500' : 'text-red-500' } />}
                     <DetailRow icon={Tag} label="Category" value={detailTx.category || 'Uncategorized'} />
                   </>
