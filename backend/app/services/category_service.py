@@ -12,14 +12,13 @@ class CategoryService:
 
     # Category rules — order matters (first match wins)
     CATEGORY_RULES = [
-        # Income
+        # Income (Explicit salaries, dividends, and business payments)
         {
             "category": "Income",
             "keywords": [
-                r"\bsalary\b", r"\bpayment\s+from\b", r"\bcredit\s+alert\b",
-                r"\bdividend\b", r"\bfreelance\b", r"\bbusiness\s+payment\b",
-                r"\bsender\b", r"\bcredit\s+transaction\b", r"\breceived\b",
-                r"\btransfer\s+from\b", r"\bdeposit\b",
+                r"\bsalary\b", r"\bdividend\b", r"\bfreelance\b", 
+                r"\bbusiness\s+payment\b", r"\bdeposit\b", r"\binterest\b",
+                r"\bpayment\s+from\b", r"\bcredit\s+alert\b", 
             ],
         },
         # Bills & Utilities
@@ -69,12 +68,13 @@ class CategoryService:
                 r"\bbolt\s+food\b", r"\beats?\b",
             ],
         },
-        # Transfer (highest priority for outgoing transfers)
+        # Transfer (Catches all P2P transfers, both in and out)
         {
             "category": "Transfer",
             "keywords": [
-                r"\btransfer\s+to\b", r"\bpos\s+pur\b", r"\bopay\b",
-                r"\bpalmpay\b", r"\bkuda\b", r"\bcarbon\b", r"\bmoniepoint\b",
+                r"\btransfer\s+to\b", r"\btransfer\s+from\b", r"\bpos\s+pur\b", 
+                r"\bopay\b", r"\bpalmpay\b", r"\bkuda\b", r"\bcarbon\b", 
+                r"\bmoniepoint\b", r"\bnip\b", r"\bmob\b", r"\buto\b", r"\btrf\b",
             ],
         },
         # Refund
@@ -110,11 +110,14 @@ class CategoryService:
         return self._fallback_category(transaction_type)
 
     def _fallback_category(self, transaction_type: Optional[str]) -> str:
-        """Fallback category based on transaction type."""
+        """
+        Fallback category based on transaction type.
+        Your custom logic: Credits = Income, Debits = Transfer.
+        """
         if transaction_type == "credit":
             return "Income"
         if transaction_type == "debit":
-            return "Other"
+            return "Transfer"
         return "Uncategorized"
 
 
