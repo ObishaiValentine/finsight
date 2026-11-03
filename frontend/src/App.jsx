@@ -14,6 +14,7 @@ import { useNavigation } from './hooks/useNavigation';
 import { useAuth } from './hooks/useAuth';
 import ResetPassword from './pages/ResetPassword';
 import AuthCallback from './pages/AuthCallback';
+import Budgets from './pages/Budgets';
 
 const pageVariants = {
   initial: { opacity: 0 },
@@ -172,6 +173,7 @@ function App() {
       case 'accounts': return <Accounts />;
       case 'settings': return <Settings />;
       case 'parser': return <Parser />;
+      case 'budgets': return <Budgets />;
       case 'dashboard':
       default:
         return <Dashboard />;

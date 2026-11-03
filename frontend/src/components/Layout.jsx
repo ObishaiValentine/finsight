@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, ArrowLeftRight, PieChart, Settings,
-  LogOut, Menu, X, Bell, Search, Wallet, ChevronRight, Sparkles,
+  LogOut, Menu, X, Bell, Search, Wallet, ChevronRight, Sparkles, Target,
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import SearchDropdown from './SearchDropdown';
@@ -19,6 +19,7 @@ const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
   { icon: ArrowLeftRight, label: 'Transactions', page: 'transactions' },
   { icon: PieChart, label: 'Analytics', page: 'analytics' },
+  { icon: Target, label: 'Budgets', page: 'budgets' },
   { icon: Wallet, label: 'Accounts', page: 'accounts' },
   { icon: Sparkles, label: 'Parser', page: 'parser' },
   { icon: Settings, label: 'Settings', page: 'settings' },
