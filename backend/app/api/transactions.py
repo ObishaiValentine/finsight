@@ -84,18 +84,24 @@ def parse_and_save(
         raw_text=payload.text,
     )
 
+    # --- ISOLATED NOTIFICATION BLOCK ---
     if result:
-        tx_type = result["transaction_type"].capitalize()
-        tx_amount = f"₦{result['amount']:,.2f}"
-        tx_bank = result.get("bank_name") or "Manual Parse"
-        tx_merchant = result.get("merchant") or "Unknown"
-        
-        notification_service.create_notification(
-            user_id=current_user["id"],
-            title="Transaction Confirmed",
-            message=f"Your manually parsed {tx_type} transaction of {tx_amount} was confirmed. Merchant: {tx_merchant}",
-            type="success" if result["transaction_type"] == "credit" else "info"
-        )
+        try:
+            tx_type = result.get("transaction_type", "Unknown").capitalize()
+            tx_amount_float = float(result.get("amount") or 0)
+            tx_amount = f"₦{tx_amount_float:,.2f}"
+            tx_merchant = result.get("merchant") or "Unknown"
+            
+            notification_service.create_notification(
+                user_id=str(current_user["id"]),
+                title="Transaction Confirmed",
+                message=f"Your manually parsed {tx_type} transaction of {tx_amount} was confirmed. Merchant: {tx_merchant}",
+                type="success" if result.get("transaction_type") == "credit" else "info"
+            )
+        except Exception as notif_err:
+            print(f"CRITICAL NOTIFICATION ERROR (MANUAL): {str(notif_err)}")
+    # -----------------------------------
+
     return result
 
 

@@ -189,23 +189,28 @@ class GmailSyncService:
                 if response.data:
                     synced_transactions.append(response.data[0])
 
-                     # --- ADD NOTIFICATION HERE ---
-                    tx_type = parsed["transaction_type"].capitalize()
-                    tx_amount = f"₦{parsed['amount']:,.2f}"
-                    tx_bank = bank
-                    tx_merchant = parsed.get("merchant") or "Unknown"
-                    
-                    notification_service.create_notification(
-                        user_id=user_id,
-                        title="Transaction Confirmed",
-                        message=f"Your {tx_type} transaction of {tx_amount} at {tx_bank} was confirmed. Merchant: {tx_merchant}",
-                        type="success" if parsed["transaction_type"] == "credit" else "info"
-                    )
-                    
+                    # --- ISOLATED NOTIFICATION BLOCK ---
+                    try:
+                        tx_type = parsed.get("transaction_type", "Unknown").capitalize()
+                        tx_amount_float = float(parsed.get("amount") or 0)
+                        tx_amount = f"₦{tx_amount_float:,.2f}"
+                        tx_bank = bank or "Unknown"
+                        tx_merchant = parsed.get("merchant") or "Unknown"
+                        
+                        notification_service.create_notification(
+                            user_id=str(user_id),
+                            title="Transaction Confirmed",
+                            message=f"Your {tx_type} transaction of {tx_amount} at {tx_bank} was confirmed. Merchant: {tx_merchant}",
+                            type="success" if parsed.get("transaction_type") == "credit" else "info"
+                        )
+                    except Exception as notif_err:
+                        print(f"CRITICAL NOTIFICATION ERROR: {str(notif_err)}")
+                    # -----------------------------------
+
             except Exception as e:
                 error_str = str(e)
                 if "duplicate key value violates unique constraint" in error_str:
-                    skipped += 1 # It's a duplicate, skip silently instead of failing
+                    skipped += 1 
                 else:
                     failed += 1
                     errors.append(f"Save error: {error_str[:100]}")

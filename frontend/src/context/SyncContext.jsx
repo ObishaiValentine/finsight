@@ -56,8 +56,6 @@ export function SyncProvider({ children }) {
     if (syncInProgressRef.current) return { skipped: true, reason: 'in-progress' };
 
     syncInProgressRef.current = true;
-    // We force the syncing UI state to true even for background syncs if you want visual feedback, 
-    // but we can keep this logic so it doesn't spin the button if it's a silent background sync.
     if (!silent) setIsSyncing(true);
 
     try {
@@ -68,15 +66,43 @@ export function SyncProvider({ children }) {
       setLastResult(result);
       emitSyncComplete(result);
 
+      // IMMEDIATE LOCAL POPUP (The backend already saved it to the DB)
+      if (result && result.synced > 0) {
+        const txs = result.synced_transactions || [];
+        
+        txs.slice(0, 3).forEach(tx => {
+          const type = tx.transaction_type === 'credit' ? 'Credit' : 'Debit';
+          const rawAmount = tx.amount || 0;
+          const amount = '₦' + Number(rawAmount).toLocaleString('en-NG');
+          const bank = tx.bank_name || 'Unknown Bank';
+          const merchant = tx.merchant || 'Unknown Merchant';
+          
+          addNotification({
+            title: `Transaction Confirmed`,
+            message: `Your ${type} transaction of ${amount} at ${bank} was confirmed. Merchant: ${merchant}`,
+            type: 'success',
+          });
+        });
+
+        if (txs.length > 3) {
+          addNotification({
+            title: 'More Transactions Synced',
+            message: `We also successfully stored ${txs.length - 3} additional transactions from your alerts.`,
+            type: 'info',
+          });
+        }
+      }
+      // ---------------------------------------------------
+
       return result;
     } catch (err) {
-      console.error('Sync failed:', err);
+      if (!silent) console.error('Sync failed:', err);
       return { error: err.message };
     } finally {
       syncInProgressRef.current = false;
       if (!silent) setIsSyncing(false);
     }
-  }, [isAuthenticated, emitSyncComplete]);
+  }, [isAuthenticated, emitSyncComplete, addNotification]);
 
   const connect = useCallback(async () => {
     const { auth_url } = await gmailService.getAuthUrl();
