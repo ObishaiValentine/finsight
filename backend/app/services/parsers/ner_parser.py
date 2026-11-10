@@ -47,9 +47,9 @@ class NERParser:
             if match:
                 return match.group(1).strip().title()
 
-        # 6. UBA MOB/UTO pattern: "MOB/UTO/CHRISTABEL OSE/fund/123"
-        if "MOB/UTO/" in text.upper():
-            match = re.search(r"MOB/UTO/([^/]+)", text, re.IGNORECASE)
+        # 6. UBA MOB/UTO or MOB/UTU pattern: "MOB/UTO/CHRISTABEL OSE" or "Mob/Utu/Obisaai Beatri"
+        if "MOB/UTO/" in text.upper() or "MOB/UTU/" in text.upper():
+            match = re.search(r"MOB/(?:UTO|UTU)/([^/]+)", text, re.IGNORECASE)
             if match:
                 return match.group(1).strip().title()
 

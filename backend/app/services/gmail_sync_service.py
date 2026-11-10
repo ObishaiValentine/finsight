@@ -60,7 +60,6 @@ class GmailSyncService:
 
     def _is_duplicate(self, user_id: str, gmail_id: str) -> bool:
         try:
-            # FIX: Use .like() because raw_text contains the gmail_id AND the body text
             response = (
                 supabase.table("transactions")
                 .select("id")
@@ -140,7 +139,6 @@ class GmailSyncService:
 
             try:
                 parsed_dt = datetime.datetime.fromisoformat(parsed_date_str)
-                # If parser found a time (not midnight)
                 if parsed_dt.hour != 0 or parsed_dt.minute != 0:
                     if parsed_dt.tzinfo is None:
                         parsed_dt = parsed_dt.replace(tzinfo=WAT)
@@ -148,7 +146,6 @@ class GmailSyncService:
             except Exception:
                 pass
 
-            # If parser failed or found midnight, use the Gmail received timestamp
             if not final_date_obj and received_at:
                 try:
                     clean_received = received_at.replace(" at ", " ")
@@ -189,7 +186,7 @@ class GmailSyncService:
                 if response.data:
                     synced_transactions.append(response.data[0])
 
-                    # --- ISOLATED NOTIFICATION BLOCK ---
+                    # --- NOTIFICATION BLOCK ---
                     try:
                         tx_type = parsed.get("transaction_type", "Unknown").capitalize()
                         tx_amount_float = float(parsed.get("amount") or 0)
