@@ -17,8 +17,9 @@ const banks = ['All Banks', 'GTB', 'Zenith', 'Access', 'UBA', 'First Bank'];
 const types = ['All Types', 'credit', 'debit'];
 
 const CATEGORIES = [
-  'Income', 'Bills', 'Shopping', 'Transport', 'Entertainment', 
-  'Food', 'Transfer', 'Refund', 'Other', 'Uncategorized',
+  'Income', 'Work', 'Bills', 'Entertainment', 'Healthcare', 'Properties',
+  'School', 'Family', 'Gym', 'Shopping', 'Transport', 'Food',
+  'Transfer', 'Refund', 'Miscellaneous', 'Uncategorized',
 ];
 
 const ITEMS_PER_PAGE = 8;
@@ -58,23 +59,31 @@ export default function Transactions({ onReady }) {
   const [hiddenIds, setHiddenIds] = useState(() => getHiddenIds());
   const [showHidden, setShowHidden] = useState(false);
 
+  // Export States
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState('csv');
   const [exportStartDate, setExportStartDate] = useState('');
   const [exportEndDate, setExportEndDate] = useState('');
   const [isExporting, setIsExporting] = useState(false);
 
+  // Bulk Edit States
+  const [selectedTxIds, setSelectedTxIds] = useState([]);
+  const [bulkCategory, setBulkCategory] = useState('');
+
+  // Detail modal
   const [detailTx, setDetailTx] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ amount: '', transaction_type: 'debit', merchant: '', transaction_date: '', balance_after: '', category: '' });
   const [savingEdit, setSavingEdit] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // Delete
   const [deleteTx, setDeleteTx] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [reparsing, setReparsing] = useState(false);
 
+  // ============ DATA FETCHING ============
   const fetchTransactions = useCallback(async (showLoader = true) => {
     if (showLoader) setLoading(true);
     setError('');
@@ -95,14 +104,12 @@ export default function Transactions({ onReady }) {
   }, [currentPage, selectedType, selectedBank, onReady]);
 
   useEffect(() => {
-    let ignore = false;
-    // Wrap in microtask to prevent synchronous setState warnings in React 19
-    Promise.resolve().then(() => {
-      if (!ignore) fetchTransactions(true);
-    });
-    return () => { ignore = true; };
+    Promise.resolve().then(() => fetchTransactions(true));
   }, [fetchTransactions]);
-  useEffect(() => { return subscribe(() => fetchTransactions(false)); }, [subscribe, fetchTransactions]);
+
+  useEffect(() => {
+    return subscribe(() => fetchTransactions(false));
+  }, [subscribe, fetchTransactions]);
 
   const filteredTransactions = useMemo(() => {
     let result = transactions;
@@ -119,11 +126,39 @@ export default function Transactions({ onReady }) {
 
   const hiddenCount = useMemo(() => transactions.filter((tx) => hiddenIds.includes(tx.id)).length, [transactions, hiddenIds]);
 
+  // ============ ACTIONS ============
   const clearFilters = () => {
     setSelectedBank('All Banks');
     setSelectedType('All Types');
     setSearchQuery('');
     setCurrentPage(1);
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedTxIds((prev) => 
+      prev.includes(id) ? prev.filter(txId => txId !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedTxIds.length === filteredTransactions.length) {
+      setSelectedTxIds([]);
+    } else {
+      setSelectedTxIds(filteredTransactions.map(tx => tx.id));
+    }
+  };
+
+  const handleBulkSave = async () => {
+    if (!bulkCategory) return;
+    try {
+      await transactionService.bulkUpdate(selectedTxIds, { category: bulkCategory });
+      setSelectedTxIds([]);
+      setBulkCategory('');
+      await fetchTransactions(false);
+      broadcastRefresh();
+    } catch (err) {
+      alert(err.message || 'Failed to bulk update');
+    }
   };
 
   const handleCopyDetails = async (tx) => {
@@ -137,8 +172,6 @@ export default function Transactions({ onReady }) {
     Date: ${formatFullDate(tx.transaction_date)}
     Account: ${tx.account_number || 'N/A'}
     Category: ${tx.category || 'Uncategorized'}
-    Balance After: ${formatAmount(tx.balance_after)}
-    Confidence: ${tx.confidence ? (tx.confidence * 100).toFixed(1) + '%' : 'N/A'}
     `.trim();
     try {
       await navigator.clipboard.writeText(text);
@@ -218,7 +251,6 @@ export default function Transactions({ onReady }) {
       if (exportEndDate) params.endDate = new Date(exportEndDate).toISOString();
 
       const data = await transactionService.exportTransactions(params);
-
       if (!data || data.length === 0) {
         alert("No transactions found for the selected criteria.");
         setIsExporting(false);
@@ -287,12 +319,9 @@ export default function Transactions({ onReady }) {
   const hasActiveFilters = selectedBank !== 'All Banks' || selectedType !== 'All Types';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       {/* HEADER */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-        className="flex flex-col xl:flex-row xl:items-center justify-between gap-4"
-      >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-primary mb-1">Transactions</h1>
           <p className="text-secondary text-sm md:text-base">
@@ -301,79 +330,43 @@ export default function Transactions({ onReady }) {
         </div>
         
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={handleReparse} disabled={reparsing}
-            className="flex items-center gap-2 px-3 py-2 bg-card border border-app rounded-lg text-secondary text-sm font-medium hover:border-blue-500 transition-colors disabled:opacity-60"
-          >
-            {reparsing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-            {reparsing ? 'Reparsing...' : 'Reparse'}
+          <button onClick={handleReparse} disabled={reparsing} className="flex items-center gap-2 px-3 py-2 bg-card border border-app rounded-lg text-secondary text-sm font-medium hover:border-blue-500 transition-colors disabled:opacity-60">
+            {reparsing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />} {reparsing ? 'Reparsing...' : 'Reparse'}
           </button>
-
           <div className="flex items-center gap-2 bg-card border border-app px-3 py-1.5 rounded-lg">
             <span className="text-xs text-muted font-medium whitespace-nowrap">Go to</span>
-              <input
-              type="number" min="1" max={totalPages} value={gotoPage}
-              onChange={(e) => setGotoPage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && gotoPage) {
-                  const p = parseInt(gotoPage);
-                  if (p >= 1 && p <= totalPages) setCurrentPage(p);
-                  setGotoPage('');
-                }
-              }}
-              placeholder={currentPage.toString()}
-              className="w-10 bg-elevated rounded text-xs text-center text-primary focus:outline-none py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
+            <input type="number" min="1" max={totalPages} value={gotoPage} onChange={(e) => setGotoPage(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && gotoPage) { const p = parseInt(gotoPage); if (p >= 1 && p <= totalPages) setCurrentPage(p); setGotoPage(''); } }} placeholder={currentPage.toString()} className="w-10 bg-elevated rounded text-xs text-center text-primary focus:outline-none py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
             <span className="text-xs text-muted">/ {totalPages}</span>
           </div>
-          
-          <button 
-            onClick={() => setExportModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-linear-to-r from-blue-600 to-cyan-500 rounded-lg text-white text-sm font-medium hover:opacity-90 transition-opacity"
-          >
+          <button onClick={() => setExportModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-linear-to-r from-blue-600 to-cyan-500 rounded-lg text-white text-sm font-medium hover:opacity-90 transition-opacity">
             <Download size={16} /> Export to file
           </button>
         </div>
       </motion.div>
 
       {/* SEARCH & FILTER BAR */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}
-        className="glass rounded-xl p-4 space-y-4"
-      >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="glass rounded-xl p-4 space-y-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} />
-            <input
-              type="text" placeholder="Search transactions..."
-              value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-card border border-app rounded-lg pl-10 pr-4 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-blue-500 transition-colors"
-            />
+            <input type="text" placeholder="Search transactions..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-card border border-app rounded-lg pl-10 pr-4 py-2.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:border-blue-500 transition-colors" />
           </div>
           <div className="flex gap-2">
             {hiddenCount > 0 && (
-              <button onClick={() => setShowHidden(!showHidden)}
-                className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium border transition-colors ${showHidden ? 'bg-amber-500/10 border-amber-500 text-amber-500' : 'bg-card border-app text-secondary hover:border-amber-500'}`}
-              >
+              <button onClick={() => setShowHidden(!showHidden)} className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium border transition-colors ${showHidden ? 'bg-amber-500/10 border-amber-500 text-amber-500' : 'bg-card border-app text-secondary hover:border-amber-500'}`}>
                 {showHidden ? <Eye size={16} /> : <EyeOff size={16} />}
                 <span className="hidden sm:inline">{showHidden ? 'Visible' : `Hidden (${hiddenCount})`}</span>
               </button>
             )}
-            <button onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${showFilters || hasActiveFilters ? 'bg-blue-500/10 border-blue-500 text-blue-500' : 'bg-card border-app text-secondary hover:border-blue-500'}`}
-            >
-              <Filter size={16} /> Filters
-              {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-blue-500"></span>}
+            <button onClick={() => setShowFilters(!showFilters)} className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${showFilters || hasActiveFilters ? 'bg-blue-500/10 border-blue-500 text-blue-500' : 'bg-card border-app text-secondary hover:border-blue-500'}`}>
+              <Filter size={16} /> Filters {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-blue-500"></span>}
             </button>
           </div>
         </div>
 
         <AnimatePresence>
           {showFilters && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-app">
                 <select value={selectedBank} onChange={(e) => { setSelectedBank(e.target.value); setCurrentPage(1); }} className="bg-card border border-app rounded-lg px-3 py-2.5 text-sm text-primary focus:outline-none focus:border-blue-500 cursor-pointer">
                   {banks.map((bank) => <option key={bank} value={bank}>{bank}</option>)}
@@ -395,12 +388,13 @@ export default function Transactions({ onReady }) {
       </motion.div>
 
       {/* TRANSACTIONS TABLE */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}
-        className="glass rounded-xl overflow-hidden"
-      >
-        <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-3 border-b border-app text-xs font-semibold text-muted uppercase tracking-wider">
-          <div className="col-span-4">Merchant</div>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="glass rounded-xl overflow-hidden">
+        {/* DESKTOP TABLE HEADER */}
+        <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-3 border-b border-app text-xs font-semibold text-muted uppercase tracking-wider items-center">
+          <div className="col-span-1">
+            <input type="checkbox" checked={filteredTransactions.length > 0 && selectedTxIds.length === filteredTransactions.length} onChange={toggleSelectAll} className="w-4 h-4 rounded border-app bg-elevated accent-blue-500 cursor-pointer" />
+          </div>
+          <div className="col-span-3">Merchant</div>
           <div className="col-span-2">Bank</div>
           <div className="col-span-2">Type</div>
           <div className="col-span-2">Date</div>
@@ -408,34 +402,29 @@ export default function Transactions({ onReady }) {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 size={24} className="animate-spin text-blue-500" />
-          </div>
+          <div className="flex items-center justify-center py-20"><Loader2 size={24} className="animate-spin text-blue-500" /></div>
         ) : error ? (
-          <div className="p-8 text-center">
-            <p className="text-sm text-red-500 mb-2">{error}</p>
-            <button onClick={() => fetchTransactions(true)} className="text-xs text-blue-500 hover:text-blue-400 transition-colors">Retry</button>
-          </div>
+          <div className="p-8 text-center"><p className="text-sm text-red-500 mb-2">{error}</p><button onClick={() => fetchTransactions(true)} className="text-xs text-blue-500 hover:text-blue-400 transition-colors">Retry</button></div>
         ) : filteredTransactions.length === 0 ? (
           <div className="p-12 text-center">
-            <p className="text-secondary text-sm mb-3">
-              {searchQuery || hasActiveFilters ? 'No transactions match your search' : 'No transactions yet'}
-            </p>
-            <button onClick={clearFilters} className="text-blue-500 text-sm hover:text-blue-400 transition-colors">
-              {searchQuery || hasActiveFilters ? 'Clear filters' : 'Go to Parser'}
-            </button>
+            <p className="text-secondary text-sm mb-3">{searchQuery || hasActiveFilters ? 'No transactions match your search' : 'No transactions yet'}</p>
+            <button onClick={clearFilters} className="text-blue-500 text-sm hover:text-blue-400 transition-colors">{searchQuery || hasActiveFilters ? 'Clear filters' : 'Go to Parser'}</button>
           </div>
         ) : (
           <div className="divide-y divide-(--border)">
             {filteredTransactions.map((tx, i) => {
               const isHidden = hiddenIds.includes(tx.id);
+              const isSelected = selectedTxIds.includes(tx.id);
               return (
-                <motion.div
-                  key={tx.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * i }}
-                  onClick={() => openDetail(tx)}
-                  className={`grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 hover:bg-hover transition-colors cursor-pointer ${isHidden ? 'opacity-40' : ''}`}
-                >
-                  <div className="col-span-4 flex items-center gap-3">
+                <motion.div key={tx.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * i }} className={`grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-4 hover:bg-hover transition-colors cursor-pointer ${isHidden ? 'opacity-40' : ''} ${isSelected ? 'bg-blue-500/5' : ''}`}>
+                  
+                  {/* Checkbox */}
+                  <div className="hidden md:flex col-span-1 items-center" onClick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(tx.id)} className="w-4 h-4 rounded border-app bg-elevated accent-blue-500 cursor-pointer" />
+                  </div>
+
+                  {/* Merchant + mobile */}
+                  <div className="col-span-3 flex items-center gap-3" onClick={() => openDetail(tx)}>
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${tx.transaction_type === 'credit' ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-red-500/10 text-red-600 dark:text-red-400'}`}>
                       {tx.transaction_type === 'credit' ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
                     </div>
@@ -446,21 +435,23 @@ export default function Transactions({ onReady }) {
                       </div>
                       <p className="text-xs text-muted md:hidden">{formatFullDate(tx.transaction_date)} • {tx.bank_name || 'Unknown'}</p>
                     </div>
-                    <p className={`text-sm font-semibold shrink-0 md:hidden ${tx.transaction_type === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                      {tx.transaction_type === 'credit' ? '+' : '-'}{formatAmount(tx.amount)}
-                    </p>
+                    <p className={`text-sm font-semibold shrink-0 md:hidden ${tx.transaction_type === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{tx.transaction_type === 'credit' ? '+' : '-'}{formatAmount(tx.amount)}</p>
                   </div>
+
+                  {/* Bank */}
                   <div className="hidden md:flex col-span-2 items-center"><span className="text-sm text-secondary">{tx.bank_name || '—'}</span></div>
+
+                  {/* Type badge */}
                   <div className="hidden md:flex col-span-2 items-center">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${tx.transaction_type === 'credit' ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-red-500/10 text-red-600 dark:text-red-400'}`}>
-                      {tx.transaction_type?.toUpperCase() || '—'}
-                    </span>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${tx.transaction_type === 'credit' ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-red-500/10 text-red-600 dark:text-red-400'}`}>{tx.transaction_type?.toUpperCase() || '—'}</span>
                   </div>
+
+                  {/* Date */}
                   <div className="hidden md:flex col-span-2 items-center"><span className="text-sm text-secondary">{formatFullDate(tx.transaction_date)}</span></div>
+
+                  {/* Amount */}
                   <div className="hidden md:flex col-span-2 items-center justify-end">
-                    <span className={`text-sm font-semibold ${tx.transaction_type === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                      {tx.transaction_type === 'credit' ? '+' : '-'}{formatAmount(tx.amount)}
-                    </span>
+                    <span className={`text-sm font-semibold ${tx.transaction_type === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{tx.transaction_type === 'credit' ? '+' : '-'}{formatAmount(tx.amount)}</span>
                   </div>
                 </motion.div>
               );
@@ -473,9 +464,7 @@ export default function Transactions({ onReady }) {
           <div className="flex items-center justify-between px-5 py-4 border-t border-app">
             <p className="text-xs text-secondary">Page {currentPage} of {totalPages}</p>
             <div className="flex items-center gap-2">
-              <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-lg bg-card border border-app text-secondary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                <ChevronLeft size={16} />
-              </button>
+              <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-lg bg-card border border-app text-secondary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"><ChevronLeft size={16} /></button>
               {(() => {
                 const pages = [];
                 const maxVisible = 5;
@@ -494,19 +483,41 @@ export default function Transactions({ onReady }) {
                 return pages.map((page, index) => {
                   if (page === '...') return <span key={`dots-${index}`} className="w-8 h-8 flex items-center justify-center text-xs text-muted">...</span>;
                   return (
-                    <motion.button key={page} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setCurrentPage(page)} className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${currentPage === page ? 'bg-blue-500 text-white shadow-md shadow-blue-500/30' : 'bg-card border border-app text-secondary hover:text-primary'}`}>
-                      {page}
-                    </motion.button>
+                    <motion.button key={page} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setCurrentPage(page)} className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${currentPage === page ? 'bg-blue-500 text-white shadow-md shadow-blue-500/30' : 'bg-card border border-app text-secondary hover:text-primary'}`}>{page}</motion.button>
                   );
                 });
               })()}
-              <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-lg bg-card border border-app text-secondary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                <ChevronRight size={16} />
-              </button>
+              <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-lg bg-card border border-app text-secondary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"><ChevronRight size={16} /></button>
             </div>
           </div>
         )}
       </motion.div>
+
+      {/* FLOATING BULK EDIT BAR */}
+      <AnimatePresence>
+        {selectedTxIds.length > 0 && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 z-50 bg-[#13131a] border border-white/10 shadow-2xl rounded-2xl p-3 flex items-center gap-4"
+          >
+            <span className="text-sm font-medium text-white pl-2">{selectedTxIds.length} selected</span>
+            <div className="w-px h-6 bg-white/10" />
+            <select 
+              value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value)}
+              className="bg-elevated border border-app rounded-lg px-3 py-2 text-sm text-primary focus:outline-none"
+            >
+              <option value="">Select Category...</option>
+              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <button onClick={handleBulkSave} disabled={!bulkCategory} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg disabled:opacity-50 hover:bg-blue-500 transition-colors">
+              Apply
+            </button>
+            <button onClick={() => setSelectedTxIds([])} className="text-muted hover:text-white p-2">
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ===================== EXPORT MODAL ===================== */}
       <AnimatePresence>
@@ -514,36 +525,21 @@ export default function Transactions({ onReady }) {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => !isExporting && setExportModalOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-100 flex items-center justify-center p-4">
             <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} onClick={(e) => e.stopPropagation()} className="bg-card border border-app rounded-2xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col">
               <div className="p-6 pb-4 border-b border-app flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-bold text-primary">Export Statement</h2>
-                  <p className="text-xs text-secondary">Download your transactions in seconds.</p>
-                </div>
+                <div><h2 className="text-xl font-bold text-primary">Export Statement</h2><p className="text-xs text-secondary">Download your transactions in seconds.</p></div>
                 <button onClick={() => !isExporting && setExportModalOpen(false)} className="text-muted hover:text-primary"><X size={20} /></button>
               </div>
               <div className="p-6 space-y-5">
                 <div>
                   <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">File Format</label>
                   <div className="grid grid-cols-3 gap-2">
-                    <button onClick={() => setExportFormat('csv')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${exportFormat === 'csv' ? 'bg-blue-500/10 border-blue-500 text-blue-500' : 'bg-elevated border-app text-secondary hover:border-blue-500/50'}`}>
-                      <Table size={20} className="mb-1" /><span className="text-xs font-medium">CSV</span>
-                    </button>
-                    <button onClick={() => setExportFormat('excel')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${exportFormat === 'excel' ? 'bg-green-500/10 border-green-500 text-green-500' : 'bg-elevated border-app text-secondary hover:border-green-500/50'}`}>
-                      <Table size={20} className="mb-1" /><span className="text-xs font-medium">Excel</span>
-                    </button>
-                    <button onClick={() => setExportFormat('pdf')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${exportFormat === 'pdf' ? 'bg-red-500/10 border-red-500 text-red-500' : 'bg-elevated border-app text-secondary hover:border-red-500/50'}`}>
-                      <FileText size={20} className="mb-1" /><span className="text-xs font-medium">PDF</span>
-                    </button>
+                    <button onClick={() => setExportFormat('csv')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${exportFormat === 'csv' ? 'bg-blue-500/10 border-blue-500 text-blue-500' : 'bg-elevated border-app text-secondary hover:border-blue-500/50'}`}><Table size={20} className="mb-1" /><span className="text-xs font-medium">CSV</span></button>
+                    <button onClick={() => setExportFormat('excel')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${exportFormat === 'excel' ? 'bg-green-500/10 border-green-500 text-green-500' : 'bg-elevated border-app text-secondary hover:border-green-500/50'}`}><Table size={20} className="mb-1" /><span className="text-xs font-medium">Excel</span></button>
+                    <button onClick={() => setExportFormat('pdf')} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${exportFormat === 'pdf' ? 'bg-red-500/10 border-red-500 text-red-500' : 'bg-elevated border-app text-secondary hover:border-red-500/50'}`}><FileText size={20} className="mb-1" /><span className="text-xs font-medium">PDF</span></button>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">Start Date</label>
-                    <input type="date" value={exportStartDate} onChange={(e) => setExportStartDate(e.target.value)} className="w-full bg-elevated border border-app rounded-lg px-3 py-2 text-sm text-primary focus:border-blue-500 outline-none" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">End Date</label>
-                    <input type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} className="w-full bg-elevated border border-app rounded-lg px-3 py-2 text-sm text-primary focus:border-blue-500 outline-none" />
-                  </div>
+                  <div><label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">Start Date</label><input type="date" value={exportStartDate} onChange={(e) => setExportStartDate(e.target.value)} className="w-full bg-elevated border border-app rounded-lg px-3 py-2 text-sm text-primary focus:border-blue-500 outline-none" /></div>
+                  <div><label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">End Date</label><input type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} className="w-full bg-elevated border border-app rounded-lg px-3 py-2 text-sm text-primary focus:border-blue-500 outline-none" /></div>
                 </div>
               </div>
               <div className="p-4 border-t border-app flex gap-3">
@@ -571,7 +567,7 @@ export default function Transactions({ onReady }) {
                     </div>
                     <div className="flex items-center gap-2">
                       {!isEditing && (
-                        <button onClick={() => { setEditForm({ amount: detailTx.amount, transaction_type: detailTx.transaction_type, merchant: detailTx.merchant || '', transaction_date: detailTx.transaction_date ? new Date(detailTx.transaction_date).toISOString().slice(0, 16) : '', balance_after: detailTx.balance_after || '', category: detailTx.category || 'Uncategorized' }); setIsEditing(true); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-500 text-xs font-semibold hover:bg-blue-500/20 transition-colors">
+                        <button onClick={() => { setEditForm({ amount: detailTx.amount, transaction_type: detailTx.transaction_type, merchant: detailTx.merchant || '', transaction_date: detailTx.transaction_date ? new Date(detailTx.transaction_date).toISOString().slice(0, 16) : '', balance_after: detailTx.balance_after || '', category: detailTx.category || 'Miscellaneous' }); setIsEditing(true); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-500 text-xs font-semibold hover:bg-blue-500/20 transition-colors">
                           <Pencil size={12} /> Edit
                         </button>
                       )}
@@ -604,8 +600,8 @@ export default function Transactions({ onReady }) {
                     <DetailRow icon={Wallet} label="Bank" value={detailTx.bank_name || 'Unknown'} />
                     {detailTx.account_number && <DetailRow icon={Hash} label="Account" value={`•••• ${String(detailTx.account_number).slice(-4)}`} mono />}
                     <DetailRow icon={Calendar} label="Type" value={detailTx.transaction_type?.toUpperCase() || '—'} capitalize />
+                    <DetailRow icon={Tag} label="Category" value={detailTx.category || 'Miscellaneous'} />
                     {detailTx.confidence !== null && detailTx.confidence !== undefined && <DetailRow icon={Sparkles} label="Parser Confidence" value={`${(detailTx.confidence * 100).toFixed(1)}%`} valueColor={ detailTx.confidence >= 0.9 ? 'text-green-500' : detailTx.confidence >= 0.7 ? 'text-yellow-500' : 'text-red-500' } />}
-                    <DetailRow icon={Tag} label="Category" value={detailTx.category || 'Uncategorized'} />
                   </>
                 )}
               </div>

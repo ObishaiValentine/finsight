@@ -1,31 +1,28 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Plus, Target, Utensils, Car, ShoppingBag, Film,
-  Receipt, ArrowRightLeft, MoreHorizontal, X, Loader2, Trash2, ShieldCheck, AlertCircle
+  Plus, Target, Utensils, Car, ShoppingBag, Film, Receipt, ArrowRightLeft,
+  MoreHorizontal, X, Loader2, Trash2, ShieldCheck, AlertCircle,
+  Briefcase, GraduationCap, Users, HeartPulse, Home, Dumbbell
 } from 'lucide-react';
 import { budgetService } from '../services/budgetService';
 import { useSync } from '../hooks/useSync';
-import AuroraBackground from '../components/AuroraBackground';
 
 const CATEGORY_ICONS = {
-  Food: Utensils,
-  Transport: Car,
-  Shopping: ShoppingBag,
-  Entertainment: Film,
-  Bills: Receipt,
-  Transfer: ArrowRightLeft,
-  Other: MoreHorizontal,
+  Work: Briefcase, Bills: Receipt, Entertainment: Film, Healthcare: HeartPulse,
+  Properties: Home, School: GraduationCap, Family: Users, Gym: Dumbbell,
+  Shopping: ShoppingBag, Transport: Car, Food: Utensils, Transfer: ArrowRightLeft,
+  Refund: ArrowRightLeft, Miscellaneous: MoreHorizontal,
 };
 
 const CATEGORY_COLORS = {
-  Food: 'from-orange-400 to-red-500',
-  Transport: 'from-blue-400 to-indigo-500',
-  Shopping: 'from-pink-400 to-purple-500',
-  Entertainment: 'from-purple-400 to-indigo-500',
-  Bills: 'from-yellow-400 to-orange-500',
-  Transfer: 'from-cyan-400 to-blue-500',
-  Other: 'from-gray-400 to-slate-500',
+  Work: 'from-emerald-400 to-teal-500', Bills: 'from-yellow-400 to-orange-500',
+  Entertainment: 'from-purple-400 to-indigo-500', Healthcare: 'from-red-400 to-rose-500',
+  Properties: 'from-amber-500 to-yellow-600', School: 'from-blue-400 to-indigo-500',
+  Family: 'from-pink-400 to-rose-400', Gym: 'from-lime-400 to-green-500',
+  Shopping: 'from-fuchsia-400 to-pink-500', Transport: 'from-cyan-400 to-blue-500',
+  Food: 'from-orange-400 to-red-500', Transfer: 'from-sky-400 to-blue-500',
+  Refund: 'from-teal-400 to-emerald-500', Miscellaneous: 'from-gray-400 to-slate-500',
 };
 
 export default function Budgets({ onReady }) {
@@ -34,7 +31,6 @@ export default function Budgets({ onReady }) {
   const [error, setError] = useState('');
   const { broadcastRefresh } = useSync();
 
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Food');
   const [limitAmount, setLimitAmount] = useState('');
@@ -55,10 +51,7 @@ export default function Budgets({ onReady }) {
   }, [onReady]);
 
   useEffect(() => {
-    // Wrap in microtask to prevent synchronous setState warnings in React 19
-    Promise.resolve().then(() => {
-      fetchBudgets();
-    });
+    Promise.resolve().then(() => fetchBudgets());
   }, [fetchBudgets]);
 
   const handleSaveBudget = async (e) => {
@@ -68,7 +61,7 @@ export default function Budgets({ onReady }) {
     try {
       await budgetService.setBudget(selectedCategory, parseFloat(limitAmount));
       await fetchBudgets();
-      broadcastRefresh(); // Update Dashboard Safe-to-Spend
+      broadcastRefresh();
       setIsModalOpen(false);
       setLimitAmount('');
     } catch (err) {
@@ -94,7 +87,7 @@ export default function Budgets({ onReady }) {
   const totalPercent = totalLimit > 0 ? Math.min((totalSpent / totalLimit) * 100, 100) : 0;
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className="space-y-6 pb-10 perspective-1000">
       
       {/* HEADER */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -106,13 +99,12 @@ export default function Budgets({ onReady }) {
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-linear-to-r from-blue-600 to-cyan-500 rounded-xl text-white text-sm font-semibold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 transition-all"
+          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-linear-to-r from-blue-600 to-cyan-500 rounded-xl text-white text-sm font-semibold shadow-[0_8px_30px_rgb(37,99,235,0.3)] hover:shadow-[0_8px_30px_rgb(37,99,235,0.6)] hover:-translate-y-1 transition-all duration-300"
         >
           <Plus size={18} /> Create Budget
         </button>
       </motion.div>
 
-      {/* ERROR ALERT */}
       {error && (
         <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-2">
           <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
@@ -120,33 +112,35 @@ export default function Budgets({ onReady }) {
         </div>
       )}
 
-      {/* OVERALL SUMMARY CARD */}
+      {/* 3D OVERALL SUMMARY CARD */}
       <motion.div
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-        className="relative rounded-3xl p-6 md:p-8 overflow-hidden border border-white/10 bg-[#07070c] shadow-2xl"
+        whileHover={{ scale: 1.01, rotateX: 2, rotateY: -2 }}
+        className="relative rounded-3xl p-6 md:p-8 overflow-hidden border border-app bg-card shadow-xl transition-all duration-300"
       >
-        <AuroraBackground intensity="subtle" />
+        {/* Soft Glow Background */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none" />
+        
         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="flex-1 space-y-2 text-center md:text-left">
-            <p className="text-xs font-bold text-blue-400 uppercase tracking-widest">Total Monthly Budget</p>
-            <h2 className="text-4xl md:text-5xl font-extrabold text-white">
+            <p className="text-xs font-bold text-blue-500 uppercase tracking-widest">Total Monthly Budget</p>
+            <h2 className="text-4xl md:text-5xl font-extrabold text-primary">
               ₦{totalLimit.toLocaleString()}
             </h2>
-            <p className="text-sm text-gray-400">
-              You have spent <span className="text-white font-semibold">₦{totalSpent.toLocaleString()}</span> so far.
+            <p className="text-sm text-secondary">
+              You have spent <span className="text-primary font-semibold">₦{totalSpent.toLocaleString()}</span> so far.
             </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 mt-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-app border border-app mt-2">
               <div className={`w-2 h-2 rounded-full ${totalPercent > 90 ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`} />
-              <span className="text-xs text-gray-300 font-medium">
+              <span className="text-xs text-secondary font-medium">
                 {totalPercent > 90 ? 'Near Limit' : 'On Track'}
               </span>
             </div>
           </div>
 
-          {/* Circular Progress Ring */}
           <div className="relative w-40 h-40 shrink-0 flex items-center justify-center">
             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
+              <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border)" strokeWidth="8" />
               <motion.circle
                 cx="50" cy="50" r="40" fill="none" 
                 stroke={totalPercent > 90 ? '#ef4444' : 'url(#blueGradient)'} 
@@ -164,8 +158,8 @@ export default function Budgets({ onReady }) {
               </defs>
             </svg>
             <div className="absolute flex flex-col items-center">
-              <span className="text-2xl font-bold text-white">{Math.round(totalPercent)}%</span>
-              <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Used</span>
+              <span className="text-2xl font-bold text-primary">{Math.round(totalPercent)}%</span>
+              <span className="text-[10px] text-muted font-medium uppercase tracking-wider">Used</span>
             </div>
           </div>
         </div>
@@ -190,10 +184,10 @@ export default function Budgets({ onReady }) {
           </button>
         </motion.div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {budgets.map((b, i) => {
             const Icon = CATEGORY_ICONS[b.category] || Target;
-            const colorClass = CATEGORY_COLORS[b.category] || 'from-gray-500 to-slate-600';
+            const colorClass = CATEGORY_COLORS[b.category] || 'from-gray-400 to-slate-500';
             const isOver = b.percent_used > 100;
             const isWarning = b.percent_used > 80 && !isOver;
 
@@ -201,51 +195,54 @@ export default function Budgets({ onReady }) {
               <motion.div
                 key={b.id}
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
-                whileHover={{ y: -5, scale: 1.02 }}
-                className="group relative bg-card border border-app rounded-2xl p-5 shadow-lg hover:shadow-2xl hover:border-white/20 transition-all overflow-hidden"
+                whileHover={{ y: -8, scale: 1.02, rotateX: 5, rotateY: 5 }}
+                className="group relative bg-card/80 backdrop-blur-xl border border-app rounded-3xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.1)] transition-all duration-300 overflow-hidden"
               >
-                {/* Background Glow on Hover */}
-                <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300 bg-linear-to-br ${colorClass}`} />
+                {/* Background Gradient Glow */}
+                <div className={`absolute -right-10 -top-10 w-32 h-32 opacity-20 rounded-full blur-2xl bg-linear-to-br ${colorClass} group-hover:opacity-40 transition-opacity duration-500`} />
 
                 <div className="relative flex justify-between items-start mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-xl bg-linear-to-br ${colorClass} flex items-center justify-center shadow-lg`}>
-                      <Icon size={22} className="text-white" />
+                  <div className="flex items-center gap-4">
+                    <div className={`w-14 h-14 rounded-2xl bg-linear-to-br ${colorClass} flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300`}>
+                      <Icon size={24} className="text-white drop-shadow-md" />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-primary">{b.category}</h3>
-                      <p className="text-xs text-muted">Monthly Limit</p>
+                      <h3 className="text-lg font-bold text-primary">{b.category}</h3>
+                      <p className="text-xs text-muted font-medium">Monthly Limit</p>
                     </div>
                   </div>
-                  <button onClick={() => handleDelete(b.id)} className="text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                  <button onClick={() => handleDelete(b.id)} className="text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all bg-app p-2 rounded-lg">
                     <Trash2 size={16} />
                   </button>
                 </div>
 
-                <div className="relative space-y-3">
+                <div className="relative space-y-4">
                   <div className="flex items-end justify-between">
-                    <span className={`text-xl font-bold ${isOver ? 'text-red-500' : 'text-primary'}`}>
+                    <span className={`text-2xl font-extrabold ${isOver ? 'text-red-500' : 'text-primary'}`}>
                       ₦{b.spent_this_month.toLocaleString()}
                     </span>
-                    <span className="text-sm text-muted">/ ₦{b.monthly_limit.toLocaleString()}</span>
+                    <span className="text-sm font-medium text-muted mb-1">/ ₦{b.monthly_limit.toLocaleString()}</span>
                   </div>
                   
-                  {/* Animated Progress Bar */}
-                  <div className="h-2.5 w-full bg-app rounded-full overflow-hidden shadow-inner">
+                  {/* 3D Progress Bar */}
+                  <div className="h-3 w-full bg-app rounded-full overflow-hidden shadow-inner border border-app/50">
                     <motion.div
                       initial={{ width: 0 }} animate={{ width: `${Math.min(b.percent_used, 100)}%` }}
-                      transition={{ duration: 1, ease: 'easeOut', delay: 0.2 + (i * 0.1) }}
-                      className={`h-full rounded-full ${
+                      transition={{ duration: 1.2, ease: 'easeOut', delay: 0.2 + (i * 0.1) }}
+                      className={`h-full rounded-full relative ${
                         isOver ? 'bg-red-500' : isWarning ? 'bg-yellow-500' : `bg-linear-to-r ${colorClass}`
                       }`}
-                    />
+                    >
+                      {/* Shine effect on bar */}
+                      <div className="absolute top-0 left-0 right-0 h-1/2 bg-white/20 rounded-t-full" />
+                    </motion.div>
                   </div>
 
                   <div className="flex justify-between text-xs pt-1">
-                    <span className={`font-semibold ${isOver ? 'text-red-500' : isWarning ? 'text-yellow-500' : 'text-green-500'}`}>
+                    <span className={`font-bold ${isOver ? 'text-red-500' : isWarning ? 'text-yellow-500' : 'text-green-500'}`}>
                       {b.percent_used}% Used
                     </span>
-                    <span className="text-muted">
+                    <span className="text-secondary font-medium">
                       {b.remaining > 0 ? `₦${b.remaining.toLocaleString()} left` : `₦${Math.abs(b.remaining).toLocaleString()} over`}
                     </span>
                   </div>
@@ -256,7 +253,7 @@ export default function Budgets({ onReady }) {
         </div>
       )}
 
-      {/* CREATE BUDGET MODAL */}
+      {/* CREATE BUDGET MODAL (Remains same as before, just updated categories) */}
       <AnimatePresence>
         {isModalOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsModalOpen(false)} className="fixed inset-0 bg-black/80 backdrop-blur-md z-100 flex items-center justify-center p-4">
@@ -273,10 +270,9 @@ export default function Budgets({ onReady }) {
               </div>
 
               <form onSubmit={handleSaveBudget} className="p-6 space-y-6">
-                {/* Category Selection */}
                 <div>
                   <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-3">Select Category</label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto hide-scrollbar">
                     {Object.keys(CATEGORY_ICONS).map((cat) => {
                       const Icon = CATEGORY_ICONS[cat];
                       const isSelected = selectedCategory === cat;
@@ -284,7 +280,7 @@ export default function Budgets({ onReady }) {
                         <button
                           key={cat} type="button" onClick={() => setSelectedCategory(cat)}
                           className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                            isSelected ? 'bg-blue-500/10 border-blue-500 text-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.2)]' : 'bg-elevated border-app text-muted hover:border-blue-500/50'
+                            isSelected ? 'bg-blue-500/10 border-blue-500 text-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.2)] scale-105' : 'bg-elevated border-app text-muted hover:border-blue-500/50'
                           }`}
                         >
                           <Icon size={20} className="mb-1" />
@@ -295,7 +291,6 @@ export default function Budgets({ onReady }) {
                   </div>
                 </div>
 
-                {/* Amount Input */}
                 <div>
                   <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">Monthly Limit (₦)</label>
                   <div className="relative">
@@ -303,12 +298,12 @@ export default function Budgets({ onReady }) {
                     <input
                       type="number" required min="1" step="0.01" value={limitAmount} onChange={(e) => setLimitAmount(e.target.value)}
                       placeholder="50,000"
-                      className="w-full bg-elevated border border-app rounded-2xl pl-10 pr-4 py-4 text-2xl font-bold text-primary placeholder:text-muted/50 focus:outline-none focus:border-blue-500 transition-colors"
+                      className="w-full bg-elevated border border-app rounded-2xl pl-10 pr-4 py-4 text-2xl font-bold text-primary placeholder:text-muted/50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                     />
                   </div>
                 </div>
 
-                <button type="submit" disabled={saving} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-linear-to-r from-blue-600 to-cyan-500 text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-60">
+                <button type="submit" disabled={saving} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-linear-to-r from-blue-600 to-cyan-500 text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 shadow-lg shadow-blue-500/25">
                   {saving ? <Loader2 size={18} className="animate-spin" /> : <Target size={18} />} Save Budget
                 </button>
               </form>

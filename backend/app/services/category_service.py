@@ -1,5 +1,5 @@
 """
-Auto-categorization service for transactions.
+Super Smart Auto-categorization service for transactions.
 Uses keyword-based rules to assign categories.
 """
 
@@ -10,15 +10,14 @@ from typing import Optional
 class CategoryService:
     """Assign categories to transactions based on merchant/narration keywords."""
 
-    # Category rules — order matters (first match wins)
     CATEGORY_RULES = [
-        # Income (Explicit salaries, dividends, and business payments)
+        # Work / Income
         {
-            "category": "Income",
+            "category": "Work",
             "keywords": [
-                r"\bsalary\b", r"\bdividend\b", r"\bfreelance\b", 
-                r"\bbusiness\s+payment\b", r"\bdeposit\b", r"\binterest\b",
-                r"\bpayment\s+from\b", r"\bcredit\s+alert\b", 
+                r"\bsalary\b", r"\bfreelance\b", r"\binvoice\b", r"\bclient\b",
+                r"\bbusiness\s+payment\b", r"\bdividend\b", r"\binterest\b",
+                r"\bpayment\s+from\b", r"\bcredit\s+alert\b",
             ],
         },
         # Bills & Utilities
@@ -26,10 +25,59 @@ class CategoryService:
             "category": "Bills",
             "keywords": [
                 r"\bmtn\b", r"\bairtime\b", r"\bdata\b", r"\bdstv\b",
-                r"\bgotv\b", r"\bstartimes\b", r"\belectricity\b",
+                r"\bgotv\b", r"\bstartimes\b", r"\belectricity\b", r"\blight\b",
                 r"\bikedc\b", r"\bekedc\b", r"\bphcn\b", r"\bwater\s+bill\b",
                 r"\bfip\s+charges\b", r"\bsms\s+charges\b", r"\bv[aá]t\b",
-                r"\bsubscription\b", r"\bsms\b", r"\bcharges?\b",
+                r"\bcharges?\b",
+            ],
+        },
+        # Entertainment (Subscriptions, etc.)
+        {
+            "category": "Entertainment",
+            "keywords": [
+                r"\bnetflix\b", r"\bspotify\b", r"\bapple\s+music\b",
+                r"\byoutube\b", r"\bprime\s+video\b", r"\bshowmax\b",
+                r"\bcinema\b", r"\bmovie\b", r"\bgame\b", r"\bsteam\b",
+                r"\bsubscription\b",
+            ],
+        },
+        # Healthcare
+        {
+            "category": "Healthcare",
+            "keywords": [
+                r"\bhospital\b", r"\bclinic\b", r"\bpharmacy\b", r"\bdoctor\b",
+                r"\bmedplus\b", r"\bhealth\b", r"\bdrugs\b", r"\bmedical\b",
+            ],
+        },
+        # Properties & Rent
+        {
+            "category": "Properties",
+            "keywords": [
+                r"\brent\b", r"\bhouse\b", r"\bland\b", r"\bproperty\b",
+                r"\bagent\b", r"\bmaintenance\b", r"\bcaretaker\b", r"\bservice\s+charge\b",
+            ],
+        },
+        # School & Education
+        {
+            "category": "School",
+            "keywords": [
+                r"\bschool\b", r"\btuition\b", r"\bfees\b", r"\bacademy\b",
+                r"\buniversity\b", r"\budemy\b", r"\bcoursera\b", r"\bexam\b",
+            ],
+        },
+        # Family & Personal
+        {
+            "category": "Family",
+            "keywords": [
+                r"\bmom\b", r"\bdad\b", r"\bbrother\b", r"\bsister\b",
+                r"\bwife\b", r"\bhusband\b", r"\bfamily\b", r"\bchild\b",
+            ],
+        },
+        # Gym & Fitness
+        {
+            "category": "Gym",
+            "keywords": [
+                r"\bgym\b", r"\bfitness\b", r"\bworkout\b", r"\btrainer\b",
             ],
         },
         # Shopping
@@ -50,15 +98,6 @@ class CategoryService:
                 r"\btoll\b", r"\btaxi\b", r"\btrain\b", r"\bbus\b",
             ],
         },
-        # Entertainment
-        {
-            "category": "Entertainment",
-            "keywords": [
-                r"\bnetflix\b", r"\bspotify\b", r"\bapple\s+music\b",
-                r"\byoutube\b", r"\bprime\s+video\b", r"\bshowmax\b",
-                r"\bcinema\b", r"\bmovie\b", r"\bgame\b", r"\bsteam\b",
-            ],
-        },
         # Food & Dining
         {
             "category": "Food",
@@ -68,13 +107,14 @@ class CategoryService:
                 r"\bbolt\s+food\b", r"\beats?\b",
             ],
         },
-        # Transfer (Catches all P2P transfers, both in and out)
+        # Transfer (POS Withdrawals, P2P, NIP)
         {
             "category": "Transfer",
             "keywords": [
                 r"\btransfer\s+to\b", r"\btransfer\s+from\b", r"\bpos\s+pur\b", 
                 r"\bopay\b", r"\bpalmpay\b", r"\bkuda\b", r"\bcarbon\b", 
                 r"\bmoniepoint\b", r"\bnip\b", r"\bmob\b", r"\buto\b", r"\btrf\b",
+                r"\bwithdrawal\b", r"\bpos\s+withdrawal\b", r"\bcard\s+withdrawal\b",
             ],
         },
         # Refund
@@ -87,16 +127,6 @@ class CategoryService:
     ]
 
     def categorize(self, text: str, transaction_type: Optional[str] = None) -> str:
-        """
-        Assign a category based on text content.
-        
-        Args:
-            text: merchant name + narration + description
-            transaction_type: 'debit' or 'credit' (used as fallback)
-        
-        Returns:
-            Category string
-        """
         if not text:
             return self._fallback_category(transaction_type)
 
@@ -110,15 +140,11 @@ class CategoryService:
         return self._fallback_category(transaction_type)
 
     def _fallback_category(self, transaction_type: Optional[str]) -> str:
-        """
-        Fallback category based on transaction type.
-        Your custom logic: Credits = Income, Debits = Transfer.
-        """
         if transaction_type == "credit":
-            return "Income"
+            return "Work"
         if transaction_type == "debit":
             return "Transfer"
-        return "Uncategorized"
+        return "Miscellaneous"
 
 
 # Singleton

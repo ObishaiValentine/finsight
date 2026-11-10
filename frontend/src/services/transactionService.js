@@ -64,6 +64,11 @@ export const transactionService = {
     return response.data;
   },
 
+  async bulkUpdate(ids, data) {
+    const response = await api.patch('/transactions/bulk', { ids, ...data });
+    return response.data;
+  },
+
   /**
    * Re-run the parser on all existing transactions for the user.
    */

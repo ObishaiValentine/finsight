@@ -1,7 +1,7 @@
 """Transaction API endpoints."""
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from typing import Optional
+from typing import Optional, List
 
 from app.schemas.transaction import (
     TransactionCreate,
@@ -143,6 +143,35 @@ def export_transactions(
         end_date=end_date,
     )
 
+class BulkTransactionUpdate(BaseModel):
+    ids: List[str]
+    category: Optional[str] = None
+    merchant: Optional[str] = None
+
+@router.patch("/bulk")
+def bulk_update_transactions(
+    payload: BulkTransactionUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Update multiple transactions at once."""
+    from app.core.supabase_client import supabase
+
+    update_data = payload.model_dump(exclude_unset=True, exclude={"ids"})
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    if not payload.ids:
+        raise HTTPException(status_code=400, detail="No transaction IDs provided")
+
+    # Update all matching transactions belonging to the user
+    response = (
+        supabase.table("transactions")
+        .update(update_data)
+        .in_("id", payload.ids)
+        .eq("user_id", current_user["id"])
+        .execute()
+    )
+
+    return {"message": f"Updated {len(payload.ids)} transactions", "data": response.data}
 
 @router.get("/stats")
 def get_stats(current_user: dict = Depends(get_current_user)):
